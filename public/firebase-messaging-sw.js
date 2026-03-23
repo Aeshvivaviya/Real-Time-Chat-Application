@@ -1,39 +1,44 @@
-// 📁 public/firebase-messaging-sw.js
+// 📁 src/firebase.js
 
-importScripts("https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js");
-importScripts("https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js");
+import { initializeApp } from "firebase/app";
+import { getMessaging, isSupported } from "firebase/messaging";
 
-// 🔥 Firebase init
-firebase.initializeApp({
+const firebaseConfig = {
   apiKey: "AIzaSyDL5aKqfy3kTb3lErzkCA2WEmupSspNVIU",
   authDomain: "real-time-chat-applicati-58e52.firebaseapp.com",
   projectId: "real-time-chat-applicati-58e52",
-  storageBucket: "real-time-chat-applicati-58e52.firebasestorage.app",
+  storageBucket: "real-time-chat-applicati-58e52.appspot.com",
   messagingSenderId: "650486864472",
   appId: "1:650486864472:web:b423a644f0010d39bcc82d"
-});
+};
 
-// ✅ FIX: messaging safe way
-const messaging = firebase.messaging();
+const app = initializeApp(firebaseConfig);
 
-// 🔔 Background message
-messaging.onBackgroundMessage(function (payload) {
-  console.log("📩 Background message:", payload);
+// ✅ FIX: service worker register
+export const getFirebaseMessaging = async () => {
+  try {
+    const supported = await isSupported();
 
-  const title = payload?.notification?.title || "New Message";
-  const options = {
-    body: payload?.notification?.body || "You have a new message",
-    icon: "/favicon.svg",
-  };
+    if (!supported) {
+      console.log("❌ Messaging not supported");
+      return null;
+    }
 
-  self.registration.showNotification(title, options);
-});
+    // ✅ Service worker register
+    if ("serviceWorker" in navigator) {
+      await navigator.serviceWorker.register(
+        "/firebase-messaging-sw.js"
+      );
 
-// 🔥 Click event
-self.addEventListener("notificationclick", function (event) {
-  event.notification.close();
+      console.log("✅ Service Worker Registered");
+    }
 
-  event.waitUntil(
-    clients.openWindow("http://localhost:5173")
-  );
-});
+    console.log("✅ Messaging supported");
+
+    return getMessaging(app);
+
+  } catch (error) {
+    console.error("Firebase messaging error:", error);
+    return null;
+  }
+};
