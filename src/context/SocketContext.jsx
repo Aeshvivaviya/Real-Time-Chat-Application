@@ -57,48 +57,7 @@ export const SocketProvider = ({ children, currentUser }) => {
     }
   }, []);
 
-  // Connect with retry logic
-  const connectWithRetry = useCallback(() => {
-    return new Promise((resolve, reject) => {
-      let attempts = 0;
-      const maxAttempts = 5;
-
-      const attempt = () => {
-        attempts++;
-        console.log(`📡 Connection attempt ${attempts}/${maxAttempts}`);
-
-        const socket = io("https://chat-app-backend-h8lg.onrender.com", {
-          transports: ["polling", "websocket"],
-          reconnection: true,
-          reconnectionAttempts: 10,
-          reconnectionDelay: 1000,
-          reconnectionDelayMax: 5000,
-          timeout: 20000,
-          query: {
-            userId: currentUser?.id,
-            username: currentUser?.username,
-          },
-        });
-
-        socket.on("connect", () => {
-          console.log("✅ Connected successfully");
-          resolve(socket);
-        });
-
-        socket.on("connect_error", () => {
-          socket.close();
-          if (attempts < maxAttempts) {
-            setTimeout(attempt, 2000 * attempts);
-          } else {
-            reject(new Error("Failed to connect after multiple attempts"));
-          }
-        });
-      };
-
-      attempt();
-    });
-  }, [currentUser]);
-
+  // Socket connection setup
   useEffect(() => {
     if (!currentUser?.id) {
       console.log("⏳ Waiting for currentUser...");
@@ -135,7 +94,7 @@ export const SocketProvider = ({ children, currentUser }) => {
       // Register user for chat
       socket.emit("register", currentUser.id, currentUser.username);
       
-      // Register user for video call (alternative event)
+      // Register user for video call
       socket.emit("register-user", currentUser.id);
     });
 
@@ -270,7 +229,6 @@ export const SocketProvider = ({ children, currentUser }) => {
     // ✅ Typing indicator
     socket.on("typing", ({ username, isTyping, fromUserId }) => {
       if (fromUserId !== currentUser.id) {
-        // Handle typing indicator in your chat component
         if (callListenersRef.current.onTyping) {
           callListenersRef.current.onTyping(username, isTyping, fromUserId);
         }
@@ -492,6 +450,35 @@ export const SocketProvider = ({ children, currentUser }) => {
       {connectionError && (
         <div className="fixed top-0 left-0 right-0 bg-red-500 text-white text-center py-2 z-50">
           ⚠️ Connection lost. Reconnecting...
+        </div>
+      )}
+
+      {/* Incoming Call Modal */}
+      {incomingCall && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
+          <div className="bg-gray-800 rounded-2xl p-6 max-w-sm w-full mx-4">
+            <h3 className="text-white text-xl font-semibold mb-2">Incoming Call</h3>
+            <p className="text-gray-300 mb-6">
+              {incomingCall.fromUsername || "Someone"} is calling you...
+            </p>
+            <div className="flex gap-4">
+              <button
+                onClick={() => {
+                  // Handle accept call
+                  clearIncomingCall();
+                }}
+                className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg transition-colors"
+              >
+                Accept
+              </button>
+              <button
+                onClick={clearIncomingCall}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg transition-colors"
+              >
+                Decline
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
