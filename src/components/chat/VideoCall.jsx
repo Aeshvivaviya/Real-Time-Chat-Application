@@ -28,7 +28,6 @@ const VideoCall = ({ start, onClose, selectedUser, currentUser }) => {
             from: currentUser.id,
           });
         }
-
       } catch (err) {
         console.error("Camera error:", err);
       }
@@ -38,17 +37,20 @@ const VideoCall = ({ start, onClose, selectedUser, currentUser }) => {
       startCamera();
     }
 
+    socket.emit("call-user", {
+      to: selectedUser.id,
+      from: currentUser.id,
+    });
+
     return () => {
       if (stream) {
         stream.getTracks().forEach((track) => track.stop());
       }
     };
-
   }, [start]);
 
   return (
     <div className="fixed inset-0 bg-black z-50 flex flex-col">
-
       {/* 🎥 SELF VIDEO */}
       <video
         ref={videoRef}
@@ -67,7 +69,6 @@ const VideoCall = ({ start, onClose, selectedUser, currentUser }) => {
           End Call
         </button>
       </div>
-
     </div>
   );
 };

@@ -11,8 +11,6 @@ import Notification from "../components/Notification";
 
 const SocketContext = createContext();
 
-
-
 export const useSocket = () => {
   const context = useContext(SocketContext);
   if (!context) {
@@ -27,7 +25,9 @@ export const SocketProvider = ({ children, currentUser }) => {
   const [isConnected, setIsConnected] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [connectionError, setConnectionError] = useState(null);
+  const [incomingCall, setIncomingCall] = useState(null);
   const reconnectAttempts = useRef(0);
+  const callListenersRef = useRef({});
 
   // 🔔 Browser permission
   useEffect(() => {
@@ -57,6 +57,48 @@ export const SocketProvider = ({ children, currentUser }) => {
     }
   }, []);
 
+  // Connect with retry logic
+  const connectWithRetry = useCallback(() => {
+    return new Promise((resolve, reject) => {
+      let attempts = 0;
+      const maxAttempts = 5;
+
+      const attempt = () => {
+        attempts++;
+        console.log(`📡 Connection attempt ${attempts}/${maxAttempts}`);
+
+        const socket = io("https://chat-app-backend-h8lg.onrender.com", {
+          transports: ["polling", "websocket"],
+          reconnection: true,
+          reconnectionAttempts: 10,
+          reconnectionDelay: 1000,
+          reconnectionDelayMax: 5000,
+          timeout: 20000,
+          query: {
+            userId: currentUser?.id,
+            username: currentUser?.username,
+          },
+        });
+
+        socket.on("connect", () => {
+          console.log("✅ Connected successfully");
+          resolve(socket);
+        });
+
+        socket.on("connect_error", () => {
+          socket.close();
+          if (attempts < maxAttempts) {
+            setTimeout(attempt, 2000 * attempts);
+          } else {
+            reject(new Error("Failed to connect after multiple attempts"));
+          }
+        });
+      };
+
+      attempt();
+    });
+  }, [currentUser]);
+
   useEffect(() => {
     if (!currentUser?.id) {
       console.log("⏳ Waiting for currentUser...");
@@ -65,9 +107,9 @@ export const SocketProvider = ({ children, currentUser }) => {
 
     console.log("🔌 Connecting to socket server...");
 
-    // ✅ FIX: Better socket configuration with polling first
+    // ✅ Socket configuration
     const socket = io("https://chat-app-backend-h8lg.onrender.com", {
-      transports: ["polling", "websocket"], // Polling first, then upgrade to websocket
+      transports: ["polling", "websocket"],
       reconnection: true,
       reconnectionAttempts: 10,
       reconnectionDelay: 1000,
@@ -83,18 +125,18 @@ export const SocketProvider = ({ children, currentUser }) => {
 
     socketRef.current = socket;
 
-    // Socket connection events
+    // ✅ Socket connection events
     socket.on("connect", () => {
       console.log("✅ Socket connected successfully:", socket.id);
       setIsConnected(true);
       setConnectionError(null);
       reconnectAttempts.current = 0;
 
-      // Register user after connection
-      socket.emit("register_user", {
-        userId: currentUser.id,
-        username: currentUser.username,
-      });
+      // Register user for chat
+      socket.emit("register", currentUser.id, currentUser.username);
+      
+      // Register user for video call (alternative event)
+      socket.emit("register-user", currentUser.id);
     });
 
     socket.on("connect_error", (error) => {
@@ -103,7 +145,6 @@ export const SocketProvider = ({ children, currentUser }) => {
       setConnectionError(error.message);
       reconnectAttempts.current++;
 
-      // ✅ FIX: Try with polling only if websocket fails
       if (reconnectAttempts.current > 3) {
         console.log("⚠️ Switching to polling only mode");
         socket.io.opts.transports = ["polling"];
@@ -114,9 +155,7 @@ export const SocketProvider = ({ children, currentUser }) => {
       console.log("🔴 Socket disconnected:", reason);
       setIsConnected(false);
 
-      // ✅ FIX: Handle specific disconnect reasons
       if (reason === "io server disconnect") {
-        // Reconnect manually if server disconnected
         setTimeout(() => {
           socket.connect();
         }, 1000);
@@ -127,63 +166,144 @@ export const SocketProvider = ({ children, currentUser }) => {
       console.log("🔄 Socket reconnected after", attemptNumber, "attempts");
       setIsConnected(true);
       setConnectionError(null);
-
-      // Re-register user after reconnection
-      socket.emit("register_user", {
-        userId: currentUser.id,
-        username: currentUser.username,
-      });
+      socket.emit("register", currentUser.id, currentUser.username);
+      socket.emit("register-user", currentUser.id);
     });
 
-    socket.on("reconnect_attempt", (attempt) => {
-      console.log("🔄 Reconnection attempt:", attempt);
-    });
-
-    socket.on("reconnect_error", (error) => {
-      console.error("❌ Reconnection error:", error);
-    });
-
-    socket.on("reconnect_failed", () => {
-      console.error("❌ Reconnection failed after all attempts");
-      setConnectionError("Failed to connect to server");
-    });
-
-    // Message receive handler
-    socket.on("receive_message", (data) => {
-      console.log("📩 Message received:", data);
-
-      if (data.senderId !== currentUser.id) {
-        setNotification({
-          userId: data.senderId,
-          username: data.senderName || "Unknown",
-          text: data.message || "",
-          senderId: data.senderId,
-          timestamp: data.timestamp || new Date().toISOString(),
-          messageType: data.messageType || "text",
-        });
-
-        if (data.senderName && data.message) {
-          showBrowserNotification(
-            data.senderName,
-            data.message.length > 50
-              ? data.message.substring(0, 50) + "..."
-              : data.message,
-          );
-        }
-      }
-    });
-
-    // Online users handler
-    socket.on("online_users", (users) => {
+    // ✅ Online users handler
+    socket.on("onlineUsers", (users) => {
       console.log("👥 Online users:", users);
       if (Array.isArray(users)) {
         setOnlineUsers(users);
       }
     });
 
-    // Error handler
+    // ✅ Message receive handler
+    socket.on("private-message", (data) => {
+      console.log("📩 Message received:", data);
+
+      if (data.fromUserId !== currentUser.id) {
+        setNotification({
+          userId: data.fromUserId,
+          username: data.fromUsername || "Unknown",
+          text: data.text || "",
+          senderId: data.fromUserId,
+          timestamp: data.timestamp || new Date().toISOString(),
+          messageType: data.type || "text",
+        });
+
+        if (data.fromUsername && data.text) {
+          showBrowserNotification(
+            data.fromUsername,
+            data.text.length > 50 ? data.text.substring(0, 50) + "..." : data.text,
+          );
+        }
+      }
+    });
+
+    // Alternative message event
+    socket.on("privateMessage", (data) => {
+      console.log("📩 Message received (alt):", data);
+      
+      if (data.fromUserId !== currentUser.id) {
+        setNotification({
+          userId: data.fromUserId,
+          username: data.fromUsername || "Unknown",
+          text: data.text || "",
+          senderId: data.fromUserId,
+          timestamp: data.timestamp || new Date().toISOString(),
+          messageType: data.type || "text",
+        });
+      }
+    });
+
+    // ✅ Video/Audio Call Events
+    socket.on("incoming-call", (data) => {
+      console.log("📞 Incoming call:", data);
+      setIncomingCall({
+        from: data.from,
+        fromUsername: data.fromUsername,
+        offer: data.offer,
+      });
+      
+      // Show notification for incoming call
+      showBrowserNotification(
+        "Incoming Call",
+        `${data.fromUsername || "Someone"} is calling you...`
+      );
+    });
+
+    socket.on("call-answered", (data) => {
+      console.log("📞 Call answered:", data);
+      if (callListenersRef.current.onCallAnswered) {
+        callListenersRef.current.onCallAnswered(data.answer);
+      }
+    });
+
+    socket.on("ice-candidate", (data) => {
+      console.log("❄ ICE candidate received:", data);
+      if (callListenersRef.current.onIceCandidate) {
+        callListenersRef.current.onIceCandidate(data.candidate);
+      }
+    });
+
+    socket.on("call-ended", (data) => {
+      console.log("🔴 Call ended:", data);
+      if (callListenersRef.current.onCallEnded) {
+        callListenersRef.current.onCallEnded();
+      }
+      setIncomingCall(null);
+    });
+
+    socket.on("call-error", (data) => {
+      console.error("❌ Call error:", data);
+      setNotification({
+        userId: null,
+        username: "System",
+        text: data.message || "Call failed",
+        senderId: null,
+        timestamp: new Date().toISOString(),
+        messageType: "error",
+      });
+    });
+
+    // ✅ Typing indicator
+    socket.on("typing", ({ username, isTyping, fromUserId }) => {
+      if (fromUserId !== currentUser.id) {
+        // Handle typing indicator in your chat component
+        if (callListenersRef.current.onTyping) {
+          callListenersRef.current.onTyping(username, isTyping, fromUserId);
+        }
+      }
+    });
+
+    // ✅ Users list
+    socket.on("users", (userList) => {
+      console.log("📋 Users list:", userList);
+      if (Array.isArray(userList)) {
+        const filteredList = userList.filter(
+          (u) => u.id !== currentUser.id
+        );
+        setOnlineUsers(filteredList);
+      }
+    });
+
+    // ✅ Message sent confirmation
+    socket.on("message-sent", (data) => {
+      console.log("✅ Message sent confirmation:", data);
+    });
+
+    // ✅ Error handler
     socket.on("error", (error) => {
       console.error("❌ Socket error:", error);
+      setNotification({
+        userId: null,
+        username: "System",
+        text: error.message || "Connection error",
+        senderId: null,
+        timestamp: new Date().toISOString(),
+        messageType: "error",
+      });
     });
 
     // Cleanup
@@ -212,115 +332,155 @@ export const SocketProvider = ({ children, currentUser }) => {
     setNotification(null);
   }, []);
 
-  // Send message function
+  const clearIncomingCall = useCallback(() => {
+    setIncomingCall(null);
+  }, []);
+
+  // ✅ Send message function
   const sendMessage = useCallback(
-    (receiverId, message, messageType = "text") => {
+    (receiverId, text, type = "private") => {
       if (!socketRef.current?.connected) {
         console.error("❌ Socket not connected");
         return false;
       }
 
-      if (!currentUser?.id || !receiverId || !message?.trim()) {
+      if (!currentUser?.id || !receiverId || !text?.trim()) {
         console.error("❌ Missing required fields");
         return false;
       }
 
+      const messageId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const timestamp = new Date().toISOString();
+
       const messageData = {
-        id: Date.now().toString(),
-        senderId: currentUser.id,
-        senderName: currentUser.username || currentUser.name,
-        receiverId,
-        message: message.trim(),
-        messageType,
-        timestamp: new Date().toISOString(),
+        id: messageId,
+        fromUserId: currentUser.id,
+        fromUsername: currentUser.username,
+        toUserId: receiverId,
+        text: text.trim(),
+        timestamp: timestamp,
+        type: type,
       };
 
       console.log("📤 Sending message:", messageData);
-      socketRef.current.emit("send_message", messageData);
+      socketRef.current.emit("private-message", messageData);
+      socketRef.current.emit("privateMessage", messageData);
       return true;
     },
     [currentUser],
   );
 
-  // Alternative connection method with retry logic
-  const connectWithRetry = useCallback(() => {
-    return new Promise((resolve, reject) => {
-      let attempts = 0;
-      const maxAttempts = 5;
-
-      const attempt = () => {
-        attempts++;
-        console.log(`📡 Connection attempt ${attempts}/${maxAttempts}`);
-
-        const socket = io("http://192.168.29.92:5000", {
-          transports: ["polling"], // Start with polling
-          reconnection: false, // We'll handle reconnection manually
-          timeout: 10000,
-          query: {
-            userId: currentUser.id,
-            username: currentUser.username,
-          },
-        });
-
-        socket.on("connect", () => {
-          console.log("✅ Connected via polling");
-          // Upgrade to websocket after connection
-          socket.io.opts.transports = ["polling", "websocket"];
-          resolve(socket);
-        });
-
-        socket.on("connect_error", () => {
-          socket.close();
-          if (attempts < maxAttempts) {
-            setTimeout(attempt, 2000 * attempts); // Exponential backoff
-          } else {
-            reject(new Error("Failed to connect after multiple attempts"));
-          }
-        });
-      };
-
-      attempt();
-    });
-  }, [currentUser]);
-
-  // Use it in useEffect
-  useEffect(() => {
-    if (!currentUser?.id) return;
-
-    connectWithRetry()
-      .then((socket) => {
-        socketRef.current = socket;
-        setIsConnected(true);
-        // Rest of your setup...
-      })
-      .catch((error) => {
-        console.error("❌ All connection attempts failed:", error);
-        setConnectionError("Failed to connect to server");
-      });
-  }, [currentUser]);
-
-  // Send typing indicator
+  // ✅ Send typing indicator
   const sendTyping = useCallback(
     (receiverId, isTyping) => {
       if (socketRef.current?.connected && receiverId) {
         socketRef.current.emit("typing", {
-          senderId: currentUser?.id,
-          receiverId,
+          username: currentUser?.username,
           isTyping,
+          toUserId: receiverId,
         });
       }
     },
     [currentUser],
   );
+
+  // ✅ Video/Audio Call Functions
+  const makeCall = useCallback(
+    (toUserId, offer, fromUsername) => {
+      if (!socketRef.current?.connected) {
+        console.error("❌ Socket not connected");
+        return false;
+      }
+
+      console.log("📞 Making call to:", toUserId);
+      socketRef.current.emit("call-user", {
+        to: toUserId,
+        from: currentUser.id,
+        offer: offer,
+        fromUsername: fromUsername || currentUser.username,
+      });
+      return true;
+    },
+    [currentUser],
+  );
+
+  const answerCall = useCallback(
+    (toUserId, answer) => {
+      if (!socketRef.current?.connected) {
+        console.error("❌ Socket not connected");
+        return false;
+      }
+
+      console.log("📞 Answering call to:", toUserId);
+      socketRef.current.emit("answer-call", {
+        to: toUserId,
+        answer: answer,
+      });
+      return true;
+    },
+    [],
+  );
+
+  const sendIceCandidate = useCallback(
+    (toUserId, candidate) => {
+      if (!socketRef.current?.connected) {
+        console.error("❌ Socket not connected");
+        return false;
+      }
+
+      console.log("❄ Sending ICE candidate to:", toUserId);
+      socketRef.current.emit("ice-candidate", {
+        to: toUserId,
+        candidate: candidate,
+      });
+      return true;
+    },
+    [],
+  );
+
+  const endCall = useCallback(
+    (toUserId) => {
+      if (!socketRef.current?.connected) {
+        console.error("❌ Socket not connected");
+        return false;
+      }
+
+      console.log("🔴 Ending call with:", toUserId);
+      socketRef.current.emit("end-call", {
+        to: toUserId,
+      });
+      setIncomingCall(null);
+      return true;
+    },
+    [],
+  );
+
+  // Register call event listeners
+  const registerCallListeners = useCallback((listeners) => {
+    callListenersRef.current = { ...callListenersRef.current, ...listeners };
+  }, []);
+
+  const unregisterCallListeners = useCallback(() => {
+    callListenersRef.current = {};
+  }, []);
 
   const value = {
     isConnected,
     connectionError,
     onlineUsers,
     notification,
+    incomingCall,
     sendMessage,
     sendTyping,
     clearNotification,
+    clearIncomingCall,
+    // Video/Audio Call functions
+    makeCall,
+    answerCall,
+    sendIceCandidate,
+    endCall,
+    registerCallListeners,
+    unregisterCallListeners,
     socket: socketRef.current,
   };
 
