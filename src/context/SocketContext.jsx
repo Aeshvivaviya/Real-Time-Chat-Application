@@ -94,8 +94,14 @@ export const SocketProvider = ({ children, currentUser }) => {
       // Register user for chat
       socket.emit("register", currentUser.id, currentUser.username);
       
-      // Register user for video call
+      // Register user for video call (both formats for compatibility)
       socket.emit("register-user", currentUser.id);
+      socket.emit("register-user", {
+        userId: currentUser.id,
+        username: currentUser.username
+      });
+      
+      console.log("👤 User registered:", currentUser.username);
     });
 
     socket.on("connect_error", (error) => {
@@ -106,7 +112,9 @@ export const SocketProvider = ({ children, currentUser }) => {
 
       if (reconnectAttempts.current > 3) {
         console.log("⚠️ Switching to polling only mode");
-        socket.io.opts.transports = ["polling"];
+        if (socket.io.opts) {
+          socket.io.opts.transports = ["polling"];
+        }
       }
     });
 
@@ -133,7 +141,10 @@ export const SocketProvider = ({ children, currentUser }) => {
     socket.on("onlineUsers", (users) => {
       console.log("👥 Online users:", users);
       if (Array.isArray(users)) {
-        setOnlineUsers(users);
+        const filteredUsers = users.filter(
+          (u) => u.userId !== currentUser.id
+        );
+        setOnlineUsers(filteredUsers);
       }
     });
 
@@ -320,7 +331,7 @@ export const SocketProvider = ({ children, currentUser }) => {
         type: type,
       };
 
-      console.log("📤 Sending message:", messageData);
+      console.log("📤 Sending message to:", receiverId);
       socketRef.current.emit("private-message", messageData);
       socketRef.current.emit("privateMessage", messageData);
       return true;
@@ -464,7 +475,10 @@ export const SocketProvider = ({ children, currentUser }) => {
             <div className="flex gap-4">
               <button
                 onClick={() => {
-                  // Handle accept call
+                  // Handle accept call - you can trigger this from VideoCall component
+                  if (callListenersRef.current.onAcceptCall) {
+                    callListenersRef.current.onAcceptCall(incomingCall);
+                  }
                   clearIncomingCall();
                 }}
                 className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg transition-colors"
@@ -472,7 +486,12 @@ export const SocketProvider = ({ children, currentUser }) => {
                 Accept
               </button>
               <button
-                onClick={clearIncomingCall}
+                onClick={() => {
+                  if (callListenersRef.current.onDeclineCall) {
+                    callListenersRef.current.onDeclineCall(incomingCall);
+                  }
+                  clearIncomingCall();
+                }}
                 className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg transition-colors"
               >
                 Decline
