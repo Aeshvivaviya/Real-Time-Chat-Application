@@ -7,7 +7,7 @@ function Sidebar({
   searchTerm,
   setSearchTerm,
   user,
-  isConnected,
+ 
   onlineUsers = [],
   privateMessages = {}, // Add this prop to receive messages
 }) {

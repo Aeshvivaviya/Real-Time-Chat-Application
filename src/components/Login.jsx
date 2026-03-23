@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const API_URL = "http://192.168.29.92:5000";
+const API_URL = "https://chat-app-backend-h8lg.onrender.com";
 
 function Login({ setUser }) {
   const [username, setUsername] = useState('');

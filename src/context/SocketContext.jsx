@@ -66,7 +66,7 @@ export const SocketProvider = ({ children, currentUser }) => {
     console.log("🔌 Connecting to socket server...");
 
     // ✅ FIX: Better socket configuration with polling first
-    const socket = io("http://192.168.29.92:5000", {
+    const socket = io("https://chat-app-backend-h8lg.onrender.com", {
       transports: ["polling", "websocket"], // Polling first, then upgrade to websocket
       reconnection: true,
       reconnectionAttempts: 10,
