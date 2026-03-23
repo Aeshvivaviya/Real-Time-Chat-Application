@@ -1,18 +1,15 @@
 import { useEffect, useRef } from "react";
+import { useSocket } from "../context/SocketContext";
 
-const VideoCall = ({ start, onClose }) => {
+const VideoCall = ({ start, onClose, selectedUser, currentUser }) => {
   const videoRef = useRef(null);
+  const socket = useSocket();
 
   useEffect(() => {
     let stream;
 
     const startCamera = async () => {
       try {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-          alert("Use localhost or HTTPS for camera access");
-          return;
-        }
-
         stream = await navigator.mediaDevices.getUserMedia({
           video: true,
           audio: true,
@@ -21,6 +18,17 @@ const VideoCall = ({ start, onClose }) => {
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
         }
+
+        // 📞 CALL SEND TO FRIEND
+        if (selectedUser) {
+          console.log("📞 Calling user:", selectedUser.username);
+
+          socket.emit("call-user", {
+            to: selectedUser.id,
+            from: currentUser.id,
+          });
+        }
+
       } catch (err) {
         console.error("Camera error:", err);
       }
@@ -35,12 +43,13 @@ const VideoCall = ({ start, onClose }) => {
         stream.getTracks().forEach((track) => track.stop());
       }
     };
+
   }, [start]);
 
   return (
     <div className="fixed inset-0 bg-black z-50 flex flex-col">
-      
-      {/* 🎥 VIDEO FULL SCREEN */}
+
+      {/* 🎥 SELF VIDEO */}
       <video
         ref={videoRef}
         autoPlay
@@ -49,7 +58,7 @@ const VideoCall = ({ start, onClose }) => {
         className="w-full h-full object-cover"
       />
 
-      {/* 🔴 END CALL BUTTON */}
+      {/* 🔴 END CALL */}
       <div className="absolute bottom-10 w-full flex justify-center">
         <button
           onClick={onClose}
@@ -58,6 +67,7 @@ const VideoCall = ({ start, onClose }) => {
           End Call
         </button>
       </div>
+
     </div>
   );
 };

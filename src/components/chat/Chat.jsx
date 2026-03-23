@@ -141,7 +141,7 @@ function Chat({ user }) {
             userId: user.id,
             otherUserId: otherUserId,
           },
-          timeout: 10000,
+          timeout: 15000,
         });
 
         const messages = response.data?.messages || response.data || [];
@@ -212,7 +212,7 @@ function Chat({ user }) {
     [user, selectedUser]
   );
 
-  // ✅ Socket connection and event listeners
+  // ✅ Socket connection and event listeners - FIXED with increased timeout
   useEffect(() => {
     if (!user?.id) return;
 
@@ -222,16 +222,16 @@ function Chat({ user }) {
       socketRef.current = null;
     }
 
-    console.log("🔌 Connecting to socket...");
+    console.log("🔌 Connecting to socket at:", SOCKET_URL);
 
-    // Create socket with user data in query
+    // Create socket with user data in query - INCREASED TIMEOUT
     socketRef.current = io(SOCKET_URL, {
       transports: ["websocket", "polling"],
       reconnection: true,
       reconnectionAttempts: 10,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
-      timeout: 10000,
+      timeout: 30000, // Increased from 10000 to 30000
       query: {
         userId: user.id,
         username: user.username,
@@ -253,12 +253,12 @@ function Chat({ user }) {
     });
 
     socket.on("connect_error", (error) => {
-      console.error("Socket connection error:", error);
+      console.error("Socket connection error:", error.message);
       reconnectAttempts.current += 1;
       
-      if (reconnectAttempts.current >= 5) {
+      if (reconnectAttempts.current >= 3) {
         setError(
-          `Failed to connect to server. Please check if server is running at ${SOCKET_URL}`
+          `Cannot connect to server. Make sure backend is running at ${SOCKET_URL}`
         );
       }
       setIsConnected(false);
@@ -602,7 +602,7 @@ function Chat({ user }) {
             <div className="bg-gradient-to-r from-yellow-600/20 to-orange-600/20 text-yellow-500 p-3 text-center text-sm flex justify-between items-center backdrop-blur-xl border-b border-yellow-500/20">
               <div className="flex items-center gap-2 flex-1 justify-center">
                 <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
-                <span>Connecting to server...</span>
+                <span>Connecting to server at {SOCKET_URL}...</span>
               </div>
               <button
                 onClick={() => window.location.reload()}
@@ -729,7 +729,7 @@ function Chat({ user }) {
 
               {!isConnected && (
                 <p className="text-yellow-500 text-sm mt-3 text-center">
-                  ⚠ Waiting for server connection...
+                  ⚠ Waiting for server connection at {SOCKET_URL}...
                 </p>
               )}
             </form>
