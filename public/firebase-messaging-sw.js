@@ -1,44 +1,29 @@
-// 📁 src/firebase.js
+// firebase-messaging-sw.js
 
-import { initializeApp } from "firebase/app";
-import { getMessaging, isSupported } from "firebase/messaging";
+// ⚠️ Only importScripts allowed
 
-const firebaseConfig = {
+importScripts("https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js");
+importScripts("https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js");
+
+firebase.initializeApp({
   apiKey: "AIzaSyDL5aKqfy3kTb3lErzkCA2WEmupSspNVIU",
   authDomain: "real-time-chat-applicati-58e52.firebaseapp.com",
   projectId: "real-time-chat-applicati-58e52",
   storageBucket: "real-time-chat-applicati-58e52.appspot.com",
   messagingSenderId: "650486864472",
   appId: "1:650486864472:web:b423a644f0010d39bcc82d"
-};
+});
 
-const app = initializeApp(firebaseConfig);
+const messaging = firebase.messaging();
 
-// ✅ FIX: service worker register
-export const getFirebaseMessaging = async () => {
-  try {
-    const supported = await isSupported();
+messaging.onBackgroundMessage(function(payload) {
+  console.log("Background message:", payload);
 
-    if (!supported) {
-      console.log("❌ Messaging not supported");
-      return null;
+  self.registration.showNotification(
+    payload.notification?.title || "New Message",
+    {
+      body: payload.notification?.body || "",
+      icon: "/favicon.svg"
     }
-
-    // ✅ Service worker register
-    if ("serviceWorker" in navigator) {
-      await navigator.serviceWorker.register(
-        "/firebase-messaging-sw.js"
-      );
-
-      console.log("✅ Service Worker Registered");
-    }
-
-    console.log("✅ Messaging supported");
-
-    return getMessaging(app);
-
-  } catch (error) {
-    console.error("Firebase messaging error:", error);
-    return null;
-  }
-};
+  );
+});
