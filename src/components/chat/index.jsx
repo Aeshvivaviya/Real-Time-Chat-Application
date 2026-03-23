@@ -1,14 +1,16 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { io } from "socket.io-client";
 import axios from "axios";
 import Sidebar from "./Sidebar";
 import ChatHeader from "./ChatHeader";
 import PrivateChat from "./PrivateChat";
 import Notification from "./Notification";
-import VideoCall from "./VideoCall"; // Import VideoCall component
+import VideoCall from "./VideoCall";
 
-const API_URL = "http://192.168.29.92:5000";
-const SOCKET_URL = "http://192.168.29.92:5000";
+axios.defaults.baseURL = "https://chat-app-backend-h8lg.onrender.com";
+
+const API_URL = "https://chat-app-backend-h8lg.onrender.com";
+const SOCKET_URL = "https://chat-app-backend-h8lg.onrender.com";
 
 function Chat({ user }) {
   const [privateMessages, setPrivateMessages] = useState({});
@@ -21,17 +23,21 @@ function Chat({ user }) {
   const [selectedUser, setSelectedUser] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [notification, setNotification] = useState(null);
-  const [startVideo, setStartVideo] = useState(false); // State for video call
+  const [startVideo, setStartVideo] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const socketRef = useRef(null);
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const initialLoadDone = useRef(false);
+  const reconnectAttempts = useRef(0);
 
   // ✅ Format time function
   const formatTime = useCallback((timestamp) => {
     try {
+      if (!timestamp) return "";
       const date = new Date(timestamp);
+      if (isNaN(date.getTime())) return "";
       return date.toLocaleTimeString("en-US", {
         hour: "2-digit",
         minute: "2-digit",
@@ -47,14 +53,14 @@ function Chat({ user }) {
       initialLoadDone.current = true;
 
       try {
-        // Messages load karo
+        // Load messages
         const savedMessages = localStorage.getItem(`chat_messages_${user.id}`);
         if (savedMessages) {
           const parsedMessages = JSON.parse(savedMessages);
           setPrivateMessages(parsedMessages);
         }
 
-        // Users load karo
+        // Load users
         const savedUsers = localStorage.getItem(`all_users_${user.id}`);
         if (savedUsers) {
           const parsedUsers = JSON.parse(savedUsers);
@@ -62,23 +68,19 @@ function Chat({ user }) {
             (u) =>
               u.username !== "System" &&
               u.username !== "system" &&
-              u.id !== "system",
+              u.id !== "system" &&
+              u.id !== user.id
           );
           setUsers(filteredUsers);
         }
 
-        // Selected user load karo
-        const savedSelectedUser = localStorage.getItem(
-          `selected_user_${user.id}`,
-        );
+        // Load selected user
+        const savedSelectedUser = localStorage.getItem(`selected_user_${user.id}`);
         if (savedSelectedUser) {
           const parsedUser = JSON.parse(savedSelectedUser);
-          if (
-            parsedUser.username === "System" ||
-            parsedUser.username === "system"
-          ) {
-            setSelectedUser(null);
-          } else {
+          if (parsedUser.username !== "System" && 
+              parsedUser.username !== "system" && 
+              parsedUser.id !== "system") {
             setSelectedUser(parsedUser);
           }
         }
@@ -90,13 +92,12 @@ function Chat({ user }) {
 
   // ✅ Save messages to localStorage
   useEffect(() => {
-    if (user?.id) {
+    if (user?.id && Object.keys(privateMessages).length > 0) {
       try {
         localStorage.setItem(
           `chat_messages_${user.id}`,
-          JSON.stringify(privateMessages),
+          JSON.stringify(privateMessages)
         );
-        console.log("Messages saved to localStorage:", privateMessages);
       } catch (e) {
         console.error("Error saving messages:", e);
       }
@@ -120,7 +121,7 @@ function Chat({ user }) {
       try {
         localStorage.setItem(
           `selected_user_${user.id}`,
-          JSON.stringify(selectedUser),
+          JSON.stringify(selectedUser)
         );
       } catch (e) {
         console.error("Error saving selected user:", e);
@@ -133,48 +134,109 @@ function Chat({ user }) {
     async (otherUserId) => {
       if (!user?.id || !otherUserId) return;
 
+      setIsLoading(true);
       try {
         const response = await axios.get(`${API_URL}/api/private-messages`, {
           params: {
             userId: user.id,
             otherUserId: otherUserId,
           },
+          timeout: 10000,
         });
 
         const messages = response.data?.messages || response.data || [];
-        console.log("Loaded messages from server:", messages);
-
+        
         setPrivateMessages((prev) => ({
           ...prev,
           [otherUserId]: Array.isArray(messages) ? messages : [],
         }));
       } catch (err) {
         console.error("Private messages load error:", err);
-        setError("Failed to load message history");
+        if (err.code === 'ECONNABORTED') {
+          setError("Request timeout. Please check your connection.");
+        } else {
+          setError("Failed to load message history");
+        }
+      } finally {
+        setIsLoading(false);
       }
     },
-    [user],
+    [user]
+  );
+
+  // ✅ Handle incoming messages
+  const handleIncomingMessage = useCallback(
+    (message) => {
+      if (!message || !user?.id) return;
+      
+      if (message.toUserId === user.id || message.fromUserId === user.id) {
+        setPrivateMessages((prev) => {
+          const otherUserId = message.fromUserId === user.id
+            ? message.toUserId
+            : message.fromUserId;
+          
+          const existingMessages = prev[otherUserId] || [];
+          const exists = existingMessages.some((m) => m.id === message.id);
+          
+          if (exists) return prev;
+
+          return {
+            ...prev,
+            [otherUserId]: [...existingMessages, message],
+          };
+        });
+
+        // Show notification for new messages from others
+        if (message.fromUserId !== user.id && 
+            (!selectedUser || selectedUser.id !== message.fromUserId)) {
+          setNotification({
+            message: `New message from ${message.fromUsername || 'Unknown'}`,
+            type: "info",
+          });
+          
+          // Auto-hide notification after 3 seconds
+          setTimeout(() => {
+            setNotification(null);
+          }, 3000);
+        }
+
+        // Scroll to bottom if chat is open
+        if (selectedUser && 
+            (selectedUser.id === message.fromUserId || selectedUser.id === message.toUserId)) {
+          setTimeout(() => {
+            messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+          }, 100);
+        }
+      }
+    },
+    [user, selectedUser]
   );
 
   // ✅ Socket connection and event listeners
   useEffect(() => {
-    if (!socketRef.current) {
-      console.log("🔌 Connecting to socket...");
+    if (!user?.id) return;
 
-      // Create socket with user data in query
-      socketRef.current = io(SOCKET_URL, {
-        transports: ["websocket", "polling"],
-        reconnection: true,
-        reconnectionAttempts: 10,
-        reconnectionDelay: 1000,
-        reconnectionDelayMax: 5000,
-        timeout: 10000,
-        query: {
-          userId: user?.id,
-          username: user?.username,
-        },
-      });
+    // Clean up previous socket connection
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+      socketRef.current = null;
     }
+
+    console.log("🔌 Connecting to socket...");
+
+    // Create socket with user data in query
+    socketRef.current = io(SOCKET_URL, {
+      transports: ["websocket", "polling"],
+      reconnection: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      timeout: 10000,
+      query: {
+        userId: user.id,
+        username: user.username,
+      },
+    });
 
     const socket = socketRef.current;
 
@@ -182,6 +244,7 @@ function Chat({ user }) {
       console.log("✅ Socket connected:", socket.id);
       setIsConnected(true);
       setError("");
+      reconnectAttempts.current = 0;
 
       // Register user with socket
       if (user?.id) {
@@ -191,70 +254,34 @@ function Chat({ user }) {
 
     socket.on("connect_error", (error) => {
       console.error("Socket connection error:", error);
-      setError(
-        `Failed to connect to server at ${SOCKET_URL}. Make sure server is running.`,
-      );
-    });
-
-    socket.on("disconnect", () => {
-      console.log("🔴 Socket disconnected");
+      reconnectAttempts.current += 1;
+      
+      if (reconnectAttempts.current >= 5) {
+        setError(
+          `Failed to connect to server. Please check if server is running at ${SOCKET_URL}`
+        );
+      }
       setIsConnected(false);
     });
 
-    socket.on("onlineUsers", (users) => {
-      console.log("👥 Online users:", users);
-      setOnlineUsers(users);
-    });
-
-    // Listen for private messages
-    socket.on("private-message", (message) => {
-      console.log("📩 Received message (private-message):", message);
-
-      if (
-        message &&
-        (message.toUserId === user?.id || message.fromUserId === user?.id)
-      ) {
-        setPrivateMessages((prev) => {
-          const otherUserId =
-            message.fromUserId === user?.id
-              ? message.toUserId
-              : message.fromUserId;
-          const existingMessages = prev[otherUserId] || [];
-
-          const exists = existingMessages.some((m) => m.id === message.id);
-          if (exists) {
-            return prev;
-          }
-
-          const updatedMessages = [...existingMessages, message];
-
-          return {
-            ...prev,
-            [otherUserId]: updatedMessages,
-          };
-        });
-
-        if (
-          message.fromUserId !== user?.id &&
-          (!selectedUser || selectedUser.id !== message.fromUserId)
-        ) {
-          setNotification({
-            message: `New message from ${message.fromUsername}`,
-            type: "info",
-          });
-        }
-
-        if (
-          selectedUser &&
-          (selectedUser.id === message.fromUserId ||
-            selectedUser.id === message.toUserId)
-        ) {
-          setTimeout(() => {
-            messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-          }, 100);
-        }
+    socket.on("disconnect", (reason) => {
+      console.log("🔴 Socket disconnected:", reason);
+      setIsConnected(false);
+      
+      if (reason === "io server disconnect") {
+        // Server disconnected, attempt to reconnect
+        socket.connect();
       }
     });
+
+    socket.on("onlineUsers", (usersList) => {
+      console.log("👥 Online users:", usersList);
+      setOnlineUsers(usersList || []);
+    });
+
+    // Listen for private messages (both event names for compatibility)
+    socket.on("private-message", handleIncomingMessage);
+    socket.on("privateMessage", handleIncomingMessage);
 
     // Listen for typing events
     socket.on("typing", ({ username, isTyping, fromUserId }) => {
@@ -274,60 +301,15 @@ function Chat({ user }) {
     // Listen for user list updates
     socket.on("users", (userList) => {
       console.log("📋 Users list received:", userList);
-      if (userList && userList.length > 0) {
+      if (userList && Array.isArray(userList)) {
         const filteredList = userList.filter(
           (u) =>
             u?.username !== "System" &&
             u?.username !== "system" &&
-            u?.id !== "system",
+            u?.id !== "system" &&
+            u?.id !== user.id
         );
         setUsers(filteredList);
-      }
-    });
-
-    // Also listen for "privateMessage" event
-    socket.on("privateMessage", (message) => {
-      console.log("📩 Received message (privateMessage event):", message);
-
-      if (
-        message &&
-        (message.toUserId === user?.id || message.fromUserId === user?.id)
-      ) {
-        setPrivateMessages((prev) => {
-          const otherUserId =
-            message.fromUserId === user?.id
-              ? message.toUserId
-              : message.fromUserId;
-          const existingMessages = prev[otherUserId] || [];
-
-          const exists = existingMessages.some((m) => m.id === message.id);
-          if (exists) return prev;
-
-          return {
-            ...prev,
-            [otherUserId]: [...existingMessages, message],
-          };
-        });
-
-        if (
-          message.fromUserId !== user?.id &&
-          (!selectedUser || selectedUser.id !== message.fromUserId)
-        ) {
-          setNotification({
-            message: `New message from ${message.fromUsername}`,
-            type: "info",
-          });
-        }
-
-        if (
-          selectedUser &&
-          (selectedUser.id === message.fromUserId ||
-            selectedUser.id === message.toUserId)
-        ) {
-          setTimeout(() => {
-            messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-          }, 100);
-        }
       }
     });
 
@@ -335,16 +317,18 @@ function Chat({ user }) {
     socket.emit("getUsers");
 
     return () => {
-      socket.off("connect");
-      socket.off("connect_error");
-      socket.off("disconnect");
-      socket.off("onlineUsers");
-      socket.off("private-message");
-      socket.off("privateMessage");
-      socket.off("typing");
-      socket.off("users");
+      if (socket) {
+        socket.off("connect");
+        socket.off("connect_error");
+        socket.off("disconnect");
+        socket.off("onlineUsers");
+        socket.off("private-message");
+        socket.off("privateMessage");
+        socket.off("typing");
+        socket.off("users");
+      }
     };
-  }, [user, selectedUser]);
+  }, [user, selectedUser, handleIncomingMessage]);
 
   // ✅ Load private chat when user is selected
   useEffect(() => {
@@ -356,7 +340,7 @@ function Chat({ user }) {
 
   // ✅ Send private message
   const sendMessage = useCallback(
-    (e) => {
+    async (e) => {
       e.preventDefault();
 
       if (!newMessage.trim()) {
@@ -370,21 +354,17 @@ function Chat({ user }) {
       }
 
       if (!socketRef.current.connected) {
-        setError("Server se connected nahi hai. Reconnecting...");
-        socketRef.current.connect();
+        setError("Not connected to server. Please wait...");
         return;
       }
 
       if (!selectedUser) {
-        setError("Pehle kisi user ko select karo");
+        setError("Please select a user first");
         return;
       }
 
-      if (
-        selectedUser.username === "System" ||
-        selectedUser.username === "system"
-      ) {
-        setError("System user ko message nahi bhej sakte");
+      if (selectedUser.username === "System" || selectedUser.username === "system") {
+        setError("Cannot send message to System user");
         return;
       }
 
@@ -404,50 +384,69 @@ function Chat({ user }) {
 
       console.log("📤 Sending message:", messageData);
 
-      socketRef.current.emit("private-message", messageData);
-      socketRef.current.emit("privateMessage", messageData);
-
+      // Optimistically update UI
       setPrivateMessages((prev) => {
         const otherUserId = selectedUser.id;
         const existingMessages = prev[otherUserId] || [];
-
-        const exists = existingMessages.some((m) => m.id === messageId);
-        if (exists) {
+        
+        // Check if message already exists
+        if (existingMessages.some((m) => m.id === messageId)) {
           return prev;
         }
 
-        const updatedMessages = [...existingMessages, messageData];
-
         return {
           ...prev,
-          [otherUserId]: updatedMessages,
+          [otherUserId]: [...existingMessages, messageData],
         };
       });
 
+      // Clear input
       setNewMessage("");
-
+      
+      // Clear typing indicator
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
       }
-      socketRef.current.emit("typing", {
-        username: user.username,
-        isTyping: false,
-        toUserId: selectedUser.id,
-      });
+      
+      // Emit message to server
+      try {
+        socketRef.current.emit("private-message", messageData);
+        socketRef.current.emit("privateMessage", messageData);
+        
+        // Stop typing indicator
+        socketRef.current.emit("typing", {
+          username: user.username,
+          isTyping: false,
+          toUserId: selectedUser.id,
+        });
+      } catch (err) {
+        console.error("Error sending message:", err);
+        setError("Failed to send message");
+        // Rollback optimistic update
+        setPrivateMessages((prev) => {
+          const otherUserId = selectedUser.id;
+          const existingMessages = prev[otherUserId] || [];
+          const filteredMessages = existingMessages.filter((m) => m.id !== messageId);
+          return {
+            ...prev,
+            [otherUserId]: filteredMessages,
+          };
+        });
+      }
 
+      // Scroll to bottom
       setTimeout(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
       }, 100);
-
-      setError("");
     },
-    [newMessage, selectedUser, user],
+    [newMessage, selectedUser, user]
   );
 
   // ✅ Handle typing
   const handleTyping = useCallback(
     (e) => {
-      setNewMessage(e.target.value);
+      const value = e.target.value;
+      setNewMessage(value);
 
       if (!socketRef.current?.connected || !selectedUser) return;
 
@@ -457,7 +456,7 @@ function Chat({ user }) {
 
       socketRef.current.emit("typing", {
         username: user.username,
-        isTyping: e.target.value.length > 0,
+        isTyping: value.length > 0,
         toUserId: selectedUser.id,
       });
 
@@ -471,7 +470,7 @@ function Chat({ user }) {
         }
       }, 2000);
     },
-    [selectedUser, user],
+    [selectedUser, user]
   );
 
   // ✅ Logout function
@@ -487,20 +486,28 @@ function Chat({ user }) {
       localStorage.removeItem(`selected_user_${user.id}`);
     }
 
+    // Clear all state
     setSelectedUser(null);
     setPrivateMessages({});
     setIsConnected(false);
-    setStartVideo(false); // Close video call on logout
+    setStartVideo(false);
+    setUsers([]);
+    setOnlineUsers([]);
+    setError("");
+    setNotification(null);
+    setSearchTerm("");
+    setNewMessage("");
 
+    // Redirect to login
     window.location.href = "/";
   }, [user]);
 
   // ✅ Filter users for search
-  const filteredUsers = React.useMemo(() => {
+  const filteredUsers = useMemo(() => {
     return users.filter(
       (u) =>
         u.id !== user?.id &&
-        u.username?.toLowerCase().includes(searchTerm.toLowerCase()),
+        u.username?.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [users, searchTerm, user]);
 
@@ -509,9 +516,8 @@ function Chat({ user }) {
     setNotification(null);
   }, []);
 
-  // ✅ Handle video call from ChatHeader
+  // ✅ Handle video call
   const handleVideoCall = useCallback(() => {
-    console.log("📹 Video call button clicked");
     if (!selectedUser) {
       setError("Please select a user first");
       return;
@@ -523,7 +529,7 @@ function Chat({ user }) {
     setStartVideo(true);
   }, [selectedUser, isConnected]);
 
-  // ✅ Handle audio call from ChatHeader
+  // ✅ Handle audio call
   const handleAudioCall = useCallback(() => {
     if (!selectedUser) {
       setError("Please select a user first");
@@ -533,15 +539,13 @@ function Chat({ user }) {
       setError("Not connected to server");
       return;
     }
+    // TODO: Implement audio call logic
     alert(`Initiating audio call with ${selectedUser.username}...`);
-    // Implement audio call logic here
   }, [selectedUser, isConnected]);
 
-  // ✅ Handle search from ChatHeader
+  // ✅ Handle search
   const handleSearch = useCallback((query) => {
-    console.log("Searching for:", query);
-    // Implement search logic here
-    alert(`Searching for: ${query}`);
+    setSearchTerm(query);
   }, []);
 
   // ✅ Close video call
@@ -549,14 +553,15 @@ function Chat({ user }) {
     setStartVideo(false);
   }, []);
 
-  // Debug: Log current messages for selected user
+  // ✅ Debug: Log current messages for selected user
   useEffect(() => {
     if (selectedUser) {
       console.log(
         "Current messages for",
         selectedUser.username,
         ":",
-        privateMessages[selectedUser.id],
+        privateMessages[selectedUser.id]?.length || 0,
+        "messages"
       );
     }
   }, [selectedUser, privateMessages]);
@@ -622,7 +627,7 @@ function Chat({ user }) {
                     strokeLinejoin="round"
                     strokeWidth="2"
                     d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  ></path>
+                  />
                 </svg>
                 {error}
               </span>
@@ -632,6 +637,12 @@ function Chat({ user }) {
               >
                 ✕
               </button>
+            </div>
+          )}
+
+          {isLoading && (
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+              <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
             </div>
           )}
 
@@ -650,7 +661,7 @@ function Chat({ user }) {
                       strokeLinejoin="round"
                       strokeWidth="2"
                       d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                    ></path>
+                    />
                   </svg>
                 </div>
                 <h3 className="text-white text-xl font-semibold mb-2">
@@ -710,7 +721,7 @@ function Chat({ user }) {
                         strokeLinejoin="round"
                         strokeWidth="2"
                         d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-                      ></path>
+                      />
                     </svg>
                   </span>
                 </button>
@@ -727,10 +738,11 @@ function Chat({ user }) {
       </div>
 
       {/* Video Call Component */}
-      {startVideo && (
+      {startVideo && selectedUser && (
         <VideoCall
           start={startVideo}
           selectedUser={selectedUser}
+          currentUser={user}
           isConnected={isConnected}
           onClose={closeVideoCall}
         />

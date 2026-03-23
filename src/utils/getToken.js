@@ -24,21 +24,24 @@ export const generateToken = async (currentUser) => {
       console.log("🔥 FCM TOKEN:", token);
 
       // ✅ backend ko bhejo
-      await fetch("http://localhost:5000/save-token", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          userId: currentUser.id,
-          token: token,
-        }),
-      });
+      await fetch(
+        "https://chat-app-backend-h8lg.onrender.com/save-token",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            userId: currentUser.id,
+            token: token,
+          }),
+        }
+      );
 
       return token;
 
     } else {
-      console.log("hello");
+      console.log("❌ Notification permission denied");
     }
 
   } catch (error) {
