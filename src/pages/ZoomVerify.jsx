@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const features = [
   "Get up to 40 minutes and 100 participants per meeting",
@@ -27,6 +28,7 @@ function CheckIcon() {
 
 export default function ZoomVerify() {
   const [birthYear, setBirthYear] = useState("");
+  const navigate = useNavigate();
 
   const currentYear = new Date().getFullYear();
   const year = parseInt(birthYear);
@@ -120,6 +122,7 @@ export default function ZoomVerify() {
               />
               <button
                 disabled={!isValid}
+                onClick={() => navigate("/signup")}
                 className="w-full py-3 rounded-lg text-sm font-semibold text-white bg-[#2D8CFF] transition-opacity disabled:opacity-40 disabled:cursor-not-allowed hover:enabled:bg-blue-600"
               >
                 Continue

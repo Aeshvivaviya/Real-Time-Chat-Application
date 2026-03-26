@@ -4,6 +4,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Login from './components/Login';
 import Chat from './components/chat/Chat';
 import ZoomVerify from './pages/ZoomVerify';
+import SignupPage from './components/chat/SignupPage';
 import { generateToken } from "./utils/getToken";
 
 function App() {
@@ -85,6 +86,9 @@ function App() {
 
           {/* Zoom Verify Route */}
           <Route path="/zoom-verify" element={<ZoomVerify />} />
+
+          {/* Signup Route */}
+          <Route path="/signup" element={<SignupPage />} />
 
           {/* Default Route */}
           <Route
