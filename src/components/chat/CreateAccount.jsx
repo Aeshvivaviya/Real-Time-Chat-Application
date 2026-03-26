@@ -9,7 +9,17 @@ export default function CreateAccount() {
   const [ageGroups, setAgeGroups] = useState([]);
   const navigate = useNavigate();
 
-  const isValid = form.firstName.trim() && form.lastName.trim() && form.password.length >= 6;
+  const pwd = form.password;
+  const checks = {
+    length: pwd.length >= 8,
+    letter: /[a-zA-Z]/.test(pwd),
+    number: /[0-9]/.test(pwd),
+    upper: /[A-Z]/.test(pwd),
+    lower: /[a-z]/.test(pwd),
+    noConsecutive: !/(.)\1{3,}|0123|1234|2345|3456|4567|5678|6789|abcd|bcde|cdef|defg|efgh|fghi|ghij|hijk|ijkl|jklm|klmn|lmno|mnop|nopq|opqr|pqrs|qrst|rstu|stuv|tuvw|uvwx|vwxy|wxyz|qwer|wert|erty|rtyu|tyui|yuio|uiop|asdf|sdfg|dfgh|fghj|ghjk|hjkl|zxcv|xcvb|cvbn|vbnm/i.test(pwd),
+  };
+  const passwordValid = Object.values(checks).every(Boolean);
+  const isValid = form.firstName.trim() && form.lastName.trim() && passwordValid;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -25,7 +35,7 @@ export default function CreateAccount() {
     const newErrors = {};
     if (!form.firstName.trim()) newErrors.firstName = "Please enter your first name";
     if (!form.lastName.trim()) newErrors.lastName = "Please enter your last name";
-    if (form.password.length < 6) newErrors.password = "Password must be at least 6 characters";
+    if (!passwordValid) newErrors.password = "Password does not meet requirements";
     if (Object.keys(newErrors).length) { setErrors(newErrors); return; }
     navigate("/login");
   };
@@ -134,6 +144,38 @@ export default function CreateAccount() {
                   )}
                 </button>
                 {errors.password && <p className="text-xs text-red-500 mt-1">{errors.password}</p>}
+
+                {/* Password checklist */}
+                {form.password.length > 0 && (
+                  <div className="mt-2 bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs space-y-1">
+                    <p className="font-semibold text-gray-700 mb-1">Password must include:</p>
+                    {[
+                      { key: "length", label: "At least 8 characters" },
+                      { key: "letter", label: "At least 1 letter (a, b, c...)" },
+                      { key: "number", label: "At least 1 number" },
+                      { key: "upper", label: "At least 1 uppercase letter" },
+                      { key: "lower", label: "At least 1 lowercase letter" },
+                    ].map(({ key, label }) => (
+                      <div key={key} className="flex items-center gap-1.5">
+                        {checks[key] ? (
+                          <svg className="w-3.5 h-3.5 text-green-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                        ) : (
+                          <svg className="w-3.5 h-3.5 text-red-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                        )}
+                        <span className={checks[key] ? "text-green-600" : "text-red-500"}>{label}</span>
+                      </div>
+                    ))}
+                    <p className="font-semibold text-gray-700 mt-2 mb-1">Password must not include:</p>
+                    <div className="flex items-center gap-1.5">
+                      {checks.noConsecutive ? (
+                        <svg className="w-3.5 h-3.5 text-green-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                      ) : (
+                        <svg className="w-3.5 h-3.5 text-red-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                      )}
+                      <span className={checks.noConsecutive ? "text-green-600" : "text-red-500"}>4 or more consecutive characters (e.g. "11111", "12345", "abcde", or "qwert")</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Educator checkbox */}
