@@ -1,8 +1,8 @@
 {
-  "routes": [
+  "rewrites": [
     {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "/((?!assets|favicon|manifest|firebase-messaging-sw).*)",
+      "destination": "/index.html"
     }
   ]
 }
