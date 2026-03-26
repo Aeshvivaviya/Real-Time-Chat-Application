@@ -7,6 +7,7 @@ import ZoomVerify from './components/chat/ZoomVerify';
 import SignupPage from './components/chat/SignupPage';
 import EmailVerify from './components/chat/EmailVerify';
 import CreateAccount from './components/chat/CreateAccount';
+import OneMoreThing from './components/chat/OneMoreThing';
 import { generateToken } from "./utils/getToken";
 
 function App() {
@@ -77,6 +78,9 @@ function App() {
 
           {/* Create Account Route */}
           <Route path="/create-account" element={<CreateAccount />} />
+
+          {/* One More Thing Route */}
+          <Route path="/one-more-thing" element={<OneMoreThing />} />
 
           {/* Login Route */}
           <Route

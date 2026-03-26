@@ -37,7 +37,7 @@ export default function CreateAccount() {
     if (!form.lastName.trim()) newErrors.lastName = "Please enter your last name";
     if (!passwordValid) newErrors.password = "Password does not meet requirements";
     if (Object.keys(newErrors).length) { setErrors(newErrors); return; }
-    navigate("/login");
+    navigate("/one-more-thing");
   };
 
   return (
