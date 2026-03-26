@@ -2,6 +2,7 @@
 
 import { initializeApp } from "firebase/app";
 import { getMessaging, isSupported } from "firebase/messaging";
+import { getAuth, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 
 // 🔥 Firebase config
 const firebaseConfig = {
@@ -15,6 +16,13 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
+export const auth = getAuth(app);
+export const googleProvider = new GoogleAuthProvider();
+
+export const signInWithGoogle = async () => {
+  const result = await signInWithPopup(auth, googleProvider);
+  return result.user;
+};
 
 // ✅ Safe messaging loader
 export const getFirebaseMessaging = async () => {
