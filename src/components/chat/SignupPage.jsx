@@ -35,19 +35,27 @@ export default function SignupPage() {
     setOtpLoading(true);
     setOtpError("");
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
       const res = await fetch(`${import.meta.env.VITE_API_URL}/api/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
       const data = await res.json();
       if (data.success) {
         navigate("/verify-email", { state: { email } });
       } else {
         setOtpError(data.message || "Failed to send OTP");
       }
-    } catch {
-      setOtpError("Server error. Please try again.");
+    } catch (err) {
+      if (err.name === "AbortError") {
+        setOtpError("Request timed out. Please try again.");
+      } else {
+        setOtpError("Server error. Please try again.");
+      }
     } finally {
       setOtpLoading(false);
     }
