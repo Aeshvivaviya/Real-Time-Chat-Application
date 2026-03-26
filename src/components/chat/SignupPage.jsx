@@ -26,8 +26,32 @@ export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleError, setGoogleError] = useState("");
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpError, setOtpError] = useState("");
   const navigate = useNavigate();
   const isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+  const handleContinue = async () => {
+    setOtpLoading(true);
+    setOtpError("");
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/send-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        navigate("/verify-email", { state: { email } });
+      } else {
+        setOtpError(data.message || "Failed to send OTP");
+      }
+    } catch {
+      setOtpError("Server error. Please try again.");
+    } finally {
+      setOtpLoading(false);
+    }
+  };
 
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
@@ -125,12 +149,13 @@ export default function SignupPage() {
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm outline-none focus:border-[#2D8CFF] focus:ring-2 focus:ring-blue-100 transition-all placeholder-gray-400"
               />
               <button
-                disabled={!isValid}
-                onClick={() => navigate("/verify-email", { state: { email } })}
+                disabled={!isValid || otpLoading}
+                onClick={handleContinue}
                 className="w-full py-3 rounded-lg text-sm font-semibold text-white bg-[#2D8CFF] transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:enabled:bg-blue-600"
               >
-                Continue
+                {otpLoading ? "Sending..." : "Continue"}
               </button>
+              {otpError && <p className="text-xs text-red-500 text-center">{otpError}</p>}
             </div>
 
             <p className="text-xs text-gray-400 text-center mb-5 leading-relaxed">

@@ -4,6 +4,8 @@ import { useNavigate, useLocation } from "react-router-dom";
 export default function EmailVerify() {
   const [otp, setOtp] = useState(Array(6).fill(""));
   const [resent, setResent] = useState(false);
+  const [verifyError, setVerifyError] = useState("");
+  const [verifyLoading, setVerifyLoading] = useState(false);
   const inputs = useRef([]);
   const navigate = useNavigate();
   const location = useLocation();
@@ -38,11 +40,38 @@ export default function EmailVerify() {
     inputs.current[Math.min(pasted.length, 5)]?.focus();
   };
 
-  const handleResend = () => {
+  const handleResend = async () => {
     setResent(true);
     setOtp(Array(6).fill(""));
     inputs.current[0]?.focus();
+    await fetch(`${import.meta.env.VITE_API_URL}/api/send-otp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
     setTimeout(() => setResent(false), 3000);
+  };
+
+  const handleVerify = async () => {
+    setVerifyLoading(true);
+    setVerifyError("");
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/verify-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, otp: otp.join("") }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        navigate("/create-account");
+      } else {
+        setVerifyError(data.message || "Invalid OTP");
+      }
+    } catch {
+      setVerifyError("Server error. Please try again.");
+    } finally {
+      setVerifyLoading(false);
+    }
   };
 
   return (
@@ -135,12 +164,13 @@ export default function EmailVerify() {
 
             {/* Verify button */}
             <button
-              disabled={!isComplete}
-              onClick={() => navigate("/create-account")}
-              className="w-full py-3 rounded-lg text-sm font-semibold text-white bg-[#2D8CFF] mb-5 transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:enabled:bg-blue-600"
+              disabled={!isComplete || verifyLoading}
+              onClick={handleVerify}
+              className="w-full py-3 rounded-lg text-sm font-semibold text-white bg-[#2D8CFF] mb-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:enabled:bg-blue-600"
             >
-              Verify
+              {verifyLoading ? "Verifying..." : "Verify"}
             </button>
+            {verifyError && <p className="text-xs text-red-500 text-center mb-3">{verifyError}</p>}
 
             {/* Email provider buttons */}
             <div className="flex gap-3">
