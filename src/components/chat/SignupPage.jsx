@@ -161,7 +161,7 @@ export default function SignupPage() {
                 onClick={handleContinue}
                 className="w-full py-3 rounded-lg text-sm font-semibold text-white bg-[#2D8CFF] transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:enabled:bg-blue-600"
               >
-                {otpLoading ? "Sending..." : "Continue"}
+                {otpLoading ? "Sending... (may take ~30s)" : "Continue"}
               </button>
               {otpError && <p className="text-xs text-red-500 text-center">{otpError}</p>}
             </div>
