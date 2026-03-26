@@ -10,7 +10,7 @@ function PrivateChat({
   messagesEndRef
 }) {
   return (
-    <div className="flex-1 overflow-y-auto p-6 space-y-4">
+    <div className="flex-1 overflow-y-auto p-3 md:p-6 space-y-3 md:space-y-4">
       {loading ? (
         <div className="flex justify-center items-center h-full">
           <div className="relative">
@@ -49,7 +49,7 @@ function PrivateChat({
               
               {/* Message bubble */}
               <div
-                className={`relative max-w-xs md:max-w-md rounded-2xl px-4 py-2 shadow-xl ${
+                className={`relative max-w-[75vw] sm:max-w-xs md:max-w-md rounded-2xl px-3 py-2 md:px-4 shadow-xl text-sm md:text-base ${
                   msg.fromUserId === user?.id
                     ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-br-none"
                     : msg.fromUserId === "system"

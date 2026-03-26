@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+} from "react";
 import { io } from "socket.io-client";
 import axios from "axios";
 import Sidebar from "./Sidebar";
@@ -7,12 +13,28 @@ import PrivateChat from "./PrivateChat";
 import Notification from "./Notification";
 import VideoCall from "./VideoCall";
 
-axios.defaults.baseURL = "https://chat-app-backend-h8lg.onrender.com";
 
-const API_URL = "https://chat-app-backend-h8lg.onrender.com";
-const SOCKET_URL = "https://chat-app-backend-h8lg.onrender.com";
+
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || API_URL;
+axios.defaults.baseURL = API_URL;
+axios.defaults.headers.common["ngrok-skip-browser-warning"] = "true";
 
 function Chat({ user }) {
+  const dedupeMessages = useCallback((messages = []) => {
+    const uniqueById = new Map();
+    for (const msg of messages) {
+      if (!msg) continue;
+      const key =
+        msg.id ||
+        `${msg.fromUserId}-${msg.toUserId}-${msg.timestamp}-${msg.text}`;
+      if (!uniqueById.has(key)) {
+        uniqueById.set(key, msg);
+      }
+    }
+    return Array.from(uniqueById.values());
+  }, []);
+
   const [privateMessages, setPrivateMessages] = useState({});
   const [newMessage, setNewMessage] = useState("");
   const [users, setUsers] = useState([]);
@@ -24,9 +46,13 @@ function Chat({ user }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [notification, setNotification] = useState(null);
   const [startVideo, setStartVideo] = useState(false);
+  const [incomingCall, setIncomingCall] = useState(null);
+  const [callMode, setCallMode] = useState("outgoing");
+  const [incomingOffer, setIncomingOffer] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
   const socketRef = useRef(null);
+  const selectedUserRef = useRef(null);
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const initialLoadDone = useRef(false);
@@ -69,18 +95,22 @@ function Chat({ user }) {
               u.username !== "System" &&
               u.username !== "system" &&
               u.id !== "system" &&
-              u.id !== user.id
+              u.id !== user.id,
           );
           setUsers(filteredUsers);
         }
 
         // Load selected user
-        const savedSelectedUser = localStorage.getItem(`selected_user_${user.id}`);
+        const savedSelectedUser = localStorage.getItem(
+          `selected_user_${user.id}`,
+        );
         if (savedSelectedUser) {
           const parsedUser = JSON.parse(savedSelectedUser);
-          if (parsedUser.username !== "System" && 
-              parsedUser.username !== "system" && 
-              parsedUser.id !== "system") {
+          if (
+            parsedUser.username !== "System" &&
+            parsedUser.username !== "system" &&
+            parsedUser.id !== "system"
+          ) {
             setSelectedUser(parsedUser);
           }
         }
@@ -96,7 +126,7 @@ function Chat({ user }) {
       try {
         localStorage.setItem(
           `chat_messages_${user.id}`,
-          JSON.stringify(privateMessages)
+          JSON.stringify(privateMessages),
         );
       } catch (e) {
         console.error("Error saving messages:", e);
@@ -121,13 +151,18 @@ function Chat({ user }) {
       try {
         localStorage.setItem(
           `selected_user_${user.id}`,
-          JSON.stringify(selectedUser)
+          JSON.stringify(selectedUser),
         );
       } catch (e) {
         console.error("Error saving selected user:", e);
       }
     }
   }, [selectedUser, user]);
+
+  // Keep latest selected user for socket event handlers
+  useEffect(() => {
+    selectedUserRef.current = selectedUser;
+  }, [selectedUser]);
 
   // ✅ Load private chat history
   const loadPrivateChatHistory = useCallback(
@@ -136,7 +171,7 @@ function Chat({ user }) {
 
       setIsLoading(true);
       try {
-        const response = await axios.get(`${API_URL}/api/private-messages`, {
+        const response = await axios.get(`/api/private-messages`, {
           params: {
             userId: user.id,
             otherUserId: otherUserId,
@@ -145,14 +180,17 @@ function Chat({ user }) {
         });
 
         const messages = response.data?.messages || response.data || [];
-        
+        const cleanMessages = dedupeMessages(
+          Array.isArray(messages) ? messages : [],
+        );
+
         setPrivateMessages((prev) => ({
           ...prev,
-          [otherUserId]: Array.isArray(messages) ? messages : [],
+          [otherUserId]: cleanMessages,
         }));
       } catch (err) {
         console.error("Private messages load error:", err);
-        if (err.code === 'ECONNABORTED') {
+        if (err.code === "ECONNABORTED") {
           setError("Request timeout. Please check your connection.");
         } else {
           setError("Failed to load message history");
@@ -161,23 +199,24 @@ function Chat({ user }) {
         setIsLoading(false);
       }
     },
-    [user]
+    [user, dedupeMessages],
   );
 
   // ✅ Handle incoming messages
   const handleIncomingMessage = useCallback(
     (message) => {
       if (!message || !user?.id) return;
-      
+
       if (message.toUserId === user.id || message.fromUserId === user.id) {
         setPrivateMessages((prev) => {
-          const otherUserId = message.fromUserId === user.id
-            ? message.toUserId
-            : message.fromUserId;
-          
+          const otherUserId =
+            message.fromUserId === user.id
+              ? message.toUserId
+              : message.fromUserId;
+
           const existingMessages = prev[otherUserId] || [];
           const exists = existingMessages.some((m) => m.id === message.id);
-          
+
           if (exists) return prev;
 
           return {
@@ -187,13 +226,16 @@ function Chat({ user }) {
         });
 
         // Show notification for new messages from others
-        if (message.fromUserId !== user.id && 
-            (!selectedUser || selectedUser.id !== message.fromUserId)) {
+        const activeSelectedUser = selectedUserRef.current;
+        if (
+          message.fromUserId !== user.id &&
+          (!activeSelectedUser || activeSelectedUser.id !== message.fromUserId)
+        ) {
           setNotification({
-            message: `New message from ${message.fromUsername || 'Unknown'}`,
+            message: `New message from ${message.fromUsername || "Unknown"}`,
             type: "info",
           });
-          
+
           // Auto-hide notification after 3 seconds
           setTimeout(() => {
             setNotification(null);
@@ -201,22 +243,24 @@ function Chat({ user }) {
         }
 
         // Scroll to bottom if chat is open
-        if (selectedUser && 
-            (selectedUser.id === message.fromUserId || selectedUser.id === message.toUserId)) {
+        if (
+          activeSelectedUser &&
+          (activeSelectedUser.id === message.fromUserId ||
+            activeSelectedUser.id === message.toUserId)
+        ) {
           setTimeout(() => {
             messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
           }, 100);
         }
       }
     },
-    [user, selectedUser]
+    [user],
   );
 
-  // ✅ Socket connection and event listeners - FIXED with increased timeout
+  // ✅ Socket connection and event listeners
   useEffect(() => {
     if (!user?.id) return;
 
-    // Clean up previous socket connection
     if (socketRef.current) {
       socketRef.current.disconnect();
       socketRef.current = null;
@@ -224,18 +268,13 @@ function Chat({ user }) {
 
     console.log("🔌 Connecting to socket at:", SOCKET_URL);
 
-    // Create socket with user data in query - INCREASED TIMEOUT
     socketRef.current = io(SOCKET_URL, {
-      transports: ["websocket", "polling"],
+      transports: ["websocket"],
       reconnection: true,
       reconnectionAttempts: 10,
       reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      timeout: 30000, // Increased from 10000 to 30000
-      query: {
-        userId: user.id,
-        username: user.username,
-      },
+      timeout: 30000,
+      query: { userId: user.id, username: user.username },
     });
 
     const socket = socketRef.current;
@@ -245,20 +284,16 @@ function Chat({ user }) {
       setIsConnected(true);
       setError("");
       reconnectAttempts.current = 0;
-
-      // Register user with socket
-      if (user?.id) {
-        socket.emit("register", user.id, user.username);
-      }
+      socket.emit("register", user.id, user.username);
     });
 
     socket.on("connect_error", (error) => {
       console.error("Socket connection error:", error.message);
       reconnectAttempts.current += 1;
-      
+
       if (reconnectAttempts.current >= 3) {
         setError(
-          `Cannot connect to server. Make sure backend is running at ${SOCKET_URL}`
+          `Cannot connect to server. Make sure backend is running at ${SOCKET_URL}`,
         );
       }
       setIsConnected(false);
@@ -267,7 +302,7 @@ function Chat({ user }) {
     socket.on("disconnect", (reason) => {
       console.log("🔴 Socket disconnected:", reason);
       setIsConnected(false);
-      
+
       if (reason === "io server disconnect") {
         // Server disconnected, attempt to reconnect
         socket.connect();
@@ -279,13 +314,51 @@ function Chat({ user }) {
       setOnlineUsers(usersList || []);
     });
 
-    // Listen for private messages (both event names for compatibility)
+    socket.on("incoming-call", (data) => {
+      console.log("📞 Incoming call:", data);
+      setIncomingCall((prev) => {
+        if (prev) return prev; // already have incoming call
+        return {
+          fromUserId: data.from,
+          fromUsername: data.fromUsername || "Unknown",
+          offer: data.offer || null,
+        };
+      });
+    });
+
+    socket.on("call-initiated", () => {
+      setNotification({
+        message: "Calling...",
+        type: "info",
+      });
+    });
+
+    socket.on("call-error", (data) => {
+      setNotification({
+        message: data?.message || "Call failed",
+        type: "error",
+      });
+      setStartVideo(false);
+      setCallMode("outgoing");
+    });
+
+    socket.on("call-ended", () => {
+      setNotification({ message: "Call ended", type: "info" });
+      setStartVideo(false);
+      setCallMode("outgoing");
+      setIncomingCall(null);
+      setIncomingOffer(null);
+    });
+
+    // Listen for private messages
     socket.on("private-message", handleIncomingMessage);
-    socket.on("privateMessage", handleIncomingMessage);
 
     // Listen for typing events
     socket.on("typing", ({ username, isTyping, fromUserId }) => {
-      if (selectedUser && selectedUser.id === fromUserId) {
+      if (
+        selectedUserRef.current &&
+        selectedUserRef.current.id === fromUserId
+      ) {
         setTypingUsers((prev) => {
           const newSet = new Set(prev);
           if (isTyping) {
@@ -307,7 +380,7 @@ function Chat({ user }) {
             u?.username !== "System" &&
             u?.username !== "system" &&
             u?.id !== "system" &&
-            u?.id !== user.id
+            u?.id !== user.id,
         );
         setUsers(filteredList);
       }
@@ -322,13 +395,16 @@ function Chat({ user }) {
         socket.off("connect_error");
         socket.off("disconnect");
         socket.off("onlineUsers");
+        socket.off("incoming-call");
+        socket.off("call-initiated");
+        socket.off("call-error");
+        socket.off("call-ended");
         socket.off("private-message");
-        socket.off("privateMessage");
         socket.off("typing");
         socket.off("users");
       }
     };
-  }, [user, selectedUser, handleIncomingMessage]);
+  }, [user, handleIncomingMessage]);
 
   // ✅ Load private chat when user is selected
   useEffect(() => {
@@ -363,7 +439,10 @@ function Chat({ user }) {
         return;
       }
 
-      if (selectedUser.username === "System" || selectedUser.username === "system") {
+      if (
+        selectedUser.username === "System" ||
+        selectedUser.username === "system"
+      ) {
         setError("Cannot send message to System user");
         return;
       }
@@ -388,7 +467,7 @@ function Chat({ user }) {
       setPrivateMessages((prev) => {
         const otherUserId = selectedUser.id;
         const existingMessages = prev[otherUserId] || [];
-        
+
         // Check if message already exists
         if (existingMessages.some((m) => m.id === messageId)) {
           return prev;
@@ -402,17 +481,16 @@ function Chat({ user }) {
 
       // Clear input
       setNewMessage("");
-      
+
       // Clear typing indicator
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
       }
-      
+
       // Emit message to server
       try {
         socketRef.current.emit("private-message", messageData);
-        socketRef.current.emit("privateMessage", messageData);
-        
+
         // Stop typing indicator
         socketRef.current.emit("typing", {
           username: user.username,
@@ -426,7 +504,9 @@ function Chat({ user }) {
         setPrivateMessages((prev) => {
           const otherUserId = selectedUser.id;
           const existingMessages = prev[otherUserId] || [];
-          const filteredMessages = existingMessages.filter((m) => m.id !== messageId);
+          const filteredMessages = existingMessages.filter(
+            (m) => m.id !== messageId,
+          );
           return {
             ...prev,
             [otherUserId]: filteredMessages,
@@ -439,7 +519,7 @@ function Chat({ user }) {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
       }, 100);
     },
-    [newMessage, selectedUser, user]
+    [newMessage, selectedUser, user],
   );
 
   // ✅ Handle typing
@@ -470,7 +550,7 @@ function Chat({ user }) {
         }
       }, 2000);
     },
-    [selectedUser, user]
+    [selectedUser, user],
   );
 
   // ✅ Logout function
@@ -507,7 +587,7 @@ function Chat({ user }) {
     return users.filter(
       (u) =>
         u.id !== user?.id &&
-        u.username?.toLowerCase().includes(searchTerm.toLowerCase())
+        u.username?.toLowerCase().includes(searchTerm.toLowerCase()),
     );
   }, [users, searchTerm, user]);
 
@@ -526,6 +606,7 @@ function Chat({ user }) {
       setError("Not connected to server");
       return;
     }
+    setCallMode("outgoing");
     setStartVideo(true);
   }, [selectedUser, isConnected]);
 
@@ -550,8 +631,32 @@ function Chat({ user }) {
 
   // ✅ Close video call
   const closeVideoCall = useCallback(() => {
+    if (socketRef.current?.connected && selectedUser?.id) {
+      socketRef.current.emit("end-call", { to: selectedUser.id });
+    }
     setStartVideo(false);
-  }, []);
+    setCallMode("outgoing");
+    setIncomingOffer(null);
+  }, [selectedUser]);
+
+  const acceptIncomingCall = useCallback(() => {
+    if (!incomingCall) return;
+    setSelectedUser({
+      id: incomingCall.fromUserId,
+      username: incomingCall.fromUsername,
+    });
+    setIncomingOffer(incomingCall.offer || null);
+    setIncomingCall(null);
+    setCallMode("incoming");
+    setStartVideo(true);
+  }, [incomingCall]);
+
+  const declineIncomingCall = useCallback(() => {
+    if (socketRef.current?.connected && incomingCall?.fromUserId) {
+      socketRef.current.emit("end-call", { to: incomingCall.fromUserId });
+    }
+    setIncomingCall(null);
+  }, [incomingCall]);
 
   // ✅ Debug: Log current messages for selected user
   useEffect(() => {
@@ -561,27 +666,45 @@ function Chat({ user }) {
         selectedUser.username,
         ":",
         privateMessages[selectedUser.id]?.length || 0,
-        "messages"
+        "messages",
       );
     }
   }, [selectedUser, privateMessages]);
 
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   return (
     <>
-      <div className="flex h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-        <Sidebar
-          users={filteredUsers}
-          selectedUser={selectedUser}
-          setSelectedUser={setSelectedUser}
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
-          user={user}
-          isConnected={isConnected}
-          onlineUsers={onlineUsers}
-          privateMessages={privateMessages}
-        />
+      <div className="flex h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 overflow-hidden">
+        
+        {/* Mobile sidebar overlay */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black/50 z-20 md:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
 
-        <div className="flex-1 flex flex-col bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+        {/* Sidebar */}
+        <div className={`
+          fixed md:relative z-30 md:z-auto h-full
+          transition-transform duration-300 ease-in-out
+          ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
+        `}>
+          <Sidebar
+            users={filteredUsers}
+            selectedUser={selectedUser}
+            setSelectedUser={(u) => { setSelectedUser(u); setSidebarOpen(false); }}
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            user={user}
+            isConnected={isConnected}
+            onlineUsers={onlineUsers}
+            privateMessages={privateMessages}
+          />
+        </div>
+
+        <div className="flex-1 flex flex-col min-w-0">
           <ChatHeader
             selectedUser={selectedUser}
             handleLogout={handleLogout}
@@ -589,6 +712,7 @@ function Chat({ user }) {
             onVideoCall={handleVideoCall}
             onAudioCall={handleAudioCall}
             onSearch={handleSearch}
+            onMenuClick={() => setSidebarOpen(true)}
           />
 
           {notification && (
@@ -686,9 +810,9 @@ function Chat({ user }) {
           {selectedUser && (
             <form
               onSubmit={sendMessage}
-              className="bg-gray-800/50 backdrop-blur-xl p-4 border-t border-gray-700"
+              className="bg-gray-800/50 backdrop-blur-xl p-2 md:p-4 border-t border-gray-700"
             >
-              <div className="flex gap-3 items-center">
+              <div className="flex gap-2 md:gap-3 items-center">
                 <input
                   type="text"
                   value={newMessage}
@@ -698,51 +822,66 @@ function Chat({ user }) {
                       ? "Connecting..."
                       : `Message @${selectedUser.username}...`
                   }
-                  className="flex-1 px-6 py-3 bg-gray-700/50 text-white border border-gray-600 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 placeholder-gray-400 transition-all duration-300"
+                  className="flex-1 px-3 md:px-6 py-2 md:py-3 bg-gray-700/50 text-white border border-gray-600 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 placeholder-gray-400 transition-all duration-300 text-sm md:text-base"
                   disabled={!isConnected}
                   autoFocus
                 />
-
                 <button
                   type="submit"
                   disabled={!newMessage.trim() || !isConnected}
-                  className="group relative px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 overflow-hidden"
+                  className="px-3 md:px-6 py-2 md:py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
                 >
-                  <span className="relative z-10 flex items-center gap-2">
+                  <span className="hidden sm:flex items-center gap-2">
                     Send
-                    <svg
-                      className="w-4 h-4 group-hover:translate-x-1 transition-transform"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-                      />
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                     </svg>
                   </span>
+                  <svg className="w-5 h-5 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                  </svg>
                 </button>
               </div>
-
-              {!isConnected && (
-                <p className="text-yellow-500 text-sm mt-3 text-center">
-                  ⚠ Waiting for server connection at {SOCKET_URL}...
-                </p>
-              )}
             </form>
           )}
         </div>
       </div>
 
       {/* Video Call Component */}
+      {incomingCall && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+          <div className="w-full max-w-sm rounded-2xl bg-gray-900 p-6 text-white shadow-2xl">
+            <h3 className="mb-2 text-xl font-semibold">Incoming call</h3>
+            <p className="mb-6 text-gray-300">
+              {incomingCall.fromUsername} is calling...
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={acceptIncomingCall}
+                className="flex-1 rounded-lg bg-green-600 px-4 py-2 hover:bg-green-700"
+              >
+                Accept
+              </button>
+              <button
+                onClick={declineIncomingCall}
+                className="flex-1 rounded-lg bg-red-600 px-4 py-2 hover:bg-red-700"
+              >
+                Decline
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {startVideo && selectedUser && (
         <VideoCall
           start={startVideo}
           selectedUser={selectedUser}
           currentUser={user}
+          socket={socketRef.current}
+          initiateCall={callMode === "outgoing"}
+          incomingOffer={incomingOffer}
+          onError={(message) => setError(message)}
           isConnected={isConnected}
           onClose={closeVideoCall}
         />

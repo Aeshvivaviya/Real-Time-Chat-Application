@@ -7,9 +7,15 @@ import {
   useCallback,
 } from "react";
 import { io } from "socket.io-client";
-import Notification from "../components/Notification";
+import Notification from "../components/chat/Notification";
 
 const SocketContext = createContext();
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL;
+
+const socket = io(SOCKET_URL, {
+  transports: ["websocket"],
+  secure: true,
+});
 
 export const useSocket = () => {
   const context = useContext(SocketContext);
@@ -67,7 +73,7 @@ export const SocketProvider = ({ children, currentUser }) => {
     console.log("🔌 Connecting to socket server...");
 
     // ✅ Socket configuration
-    const socket = io("https://chat-app-backend-h8lg.onrender.com", {
+    const socket = io(SOCKET_URL, {
       transports: ["polling", "websocket"],
       reconnection: true,
       reconnectionAttempts: 10,
@@ -93,14 +99,14 @@ export const SocketProvider = ({ children, currentUser }) => {
 
       // Register user for chat
       socket.emit("register", currentUser.id, currentUser.username);
-      
+
       // Register user for video call (both formats for compatibility)
       socket.emit("register-user", currentUser.id);
       socket.emit("register-user", {
         userId: currentUser.id,
-        username: currentUser.username
+        username: currentUser.username,
       });
-      
+
       console.log("👤 User registered:", currentUser.username);
     });
 
@@ -141,9 +147,7 @@ export const SocketProvider = ({ children, currentUser }) => {
     socket.on("onlineUsers", (users) => {
       console.log("👥 Online users:", users);
       if (Array.isArray(users)) {
-        const filteredUsers = users.filter(
-          (u) => u.userId !== currentUser.id
-        );
+        const filteredUsers = users.filter((u) => u.userId !== currentUser.id);
         setOnlineUsers(filteredUsers);
       }
     });
@@ -165,7 +169,9 @@ export const SocketProvider = ({ children, currentUser }) => {
         if (data.fromUsername && data.text) {
           showBrowserNotification(
             data.fromUsername,
-            data.text.length > 50 ? data.text.substring(0, 50) + "..." : data.text,
+            data.text.length > 50
+              ? data.text.substring(0, 50) + "..."
+              : data.text,
           );
         }
       }
@@ -174,7 +180,7 @@ export const SocketProvider = ({ children, currentUser }) => {
     // Alternative message event
     socket.on("privateMessage", (data) => {
       console.log("📩 Message received (alt):", data);
-      
+
       if (data.fromUserId !== currentUser.id) {
         setNotification({
           userId: data.fromUserId,
@@ -195,11 +201,11 @@ export const SocketProvider = ({ children, currentUser }) => {
         fromUsername: data.fromUsername,
         offer: data.offer,
       });
-      
+
       // Show notification for incoming call
       showBrowserNotification(
         "Incoming Call",
-        `${data.fromUsername || "Someone"} is calling you...`
+        `${data.fromUsername || "Someone"} is calling you...`,
       );
     });
 
@@ -250,9 +256,7 @@ export const SocketProvider = ({ children, currentUser }) => {
     socket.on("users", (userList) => {
       console.log("📋 Users list:", userList);
       if (Array.isArray(userList)) {
-        const filteredList = userList.filter(
-          (u) => u.id !== currentUser.id
-        );
+        const filteredList = userList.filter((u) => u.id !== currentUser.id);
         setOnlineUsers(filteredList);
       }
     });
@@ -373,56 +377,47 @@ export const SocketProvider = ({ children, currentUser }) => {
     [currentUser],
   );
 
-  const answerCall = useCallback(
-    (toUserId, answer) => {
-      if (!socketRef.current?.connected) {
-        console.error("❌ Socket not connected");
-        return false;
-      }
+  const answerCall = useCallback((toUserId, answer) => {
+    if (!socketRef.current?.connected) {
+      console.error("❌ Socket not connected");
+      return false;
+    }
 
-      console.log("📞 Answering call to:", toUserId);
-      socketRef.current.emit("answer-call", {
-        to: toUserId,
-        answer: answer,
-      });
-      return true;
-    },
-    [],
-  );
+    console.log("📞 Answering call to:", toUserId);
+    socketRef.current.emit("answer-call", {
+      to: toUserId,
+      answer: answer,
+    });
+    return true;
+  }, []);
 
-  const sendIceCandidate = useCallback(
-    (toUserId, candidate) => {
-      if (!socketRef.current?.connected) {
-        console.error("❌ Socket not connected");
-        return false;
-      }
+  const sendIceCandidate = useCallback((toUserId, candidate) => {
+    if (!socketRef.current?.connected) {
+      console.error("❌ Socket not connected");
+      return false;
+    }
 
-      console.log("❄ Sending ICE candidate to:", toUserId);
-      socketRef.current.emit("ice-candidate", {
-        to: toUserId,
-        candidate: candidate,
-      });
-      return true;
-    },
-    [],
-  );
+    console.log("❄ Sending ICE candidate to:", toUserId);
+    socketRef.current.emit("ice-candidate", {
+      to: toUserId,
+      candidate: candidate,
+    });
+    return true;
+  }, []);
 
-  const endCall = useCallback(
-    (toUserId) => {
-      if (!socketRef.current?.connected) {
-        console.error("❌ Socket not connected");
-        return false;
-      }
+  const endCall = useCallback((toUserId) => {
+    if (!socketRef.current?.connected) {
+      console.error("❌ Socket not connected");
+      return false;
+    }
 
-      console.log("🔴 Ending call with:", toUserId);
-      socketRef.current.emit("end-call", {
-        to: toUserId,
-      });
-      setIncomingCall(null);
-      return true;
-    },
-    [],
-  );
+    console.log("🔴 Ending call with:", toUserId);
+    socketRef.current.emit("end-call", {
+      to: toUserId,
+    });
+    setIncomingCall(null);
+    return true;
+  }, []);
 
   // Register call event listeners
   const registerCallListeners = useCallback((listeners) => {
@@ -468,7 +463,9 @@ export const SocketProvider = ({ children, currentUser }) => {
       {incomingCall && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
           <div className="bg-gray-800 rounded-2xl p-6 max-w-sm w-full mx-4">
-            <h3 className="text-white text-xl font-semibold mb-2">Incoming Call</h3>
+            <h3 className="text-white text-xl font-semibold mb-2">
+              Incoming Call
+            </h3>
             <p className="text-gray-300 mb-6">
               {incomingCall.fromUsername || "Someone"} is calling you...
             </p>
