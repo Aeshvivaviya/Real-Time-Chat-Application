@@ -17,6 +17,11 @@ function App() {
 
   // Optional auto-login (only when "Remember me" is enabled)
   useEffect(() => {
+    // Pre-warm backend on app load to prevent Render sleep delay
+    fetch(`${import.meta.env.VITE_API_URL}/api/health`).catch(() => {});
+  }, []);
+
+  useEffect(() => {
     const shouldRemember = localStorage.getItem("chatRememberMe") === "true";
     const savedUser = localStorage.getItem("chatUser");
 
