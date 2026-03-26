@@ -36,7 +36,7 @@ export default function SignupPage() {
     setOtpError("");
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 15000);
+      const timeout = setTimeout(() => controller.abort(), 60000);
       const res = await fetch(`${import.meta.env.VITE_API_URL}/api/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
