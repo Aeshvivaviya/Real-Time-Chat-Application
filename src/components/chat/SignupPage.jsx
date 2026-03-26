@@ -61,7 +61,7 @@ export default function SignupPage() {
         <nav className="flex items-center gap-4 md:gap-6">
           <span className="text-sm text-gray-500 hidden md:block">
             Already have an account?{" "}
-            <a href="#" className="text-[#2D8CFF] font-medium hover:underline">Sign In</a>
+            <a href="/login" className="text-[#2D8CFF] font-medium hover:underline">Sign In</a>
           </span>
           <a href="#" className="text-sm text-gray-600 hover:text-[#2D8CFF] font-medium">Support</a>
           <select className="text-sm border border-gray-300 rounded-md px-2 py-1 text-gray-600 outline-none focus:border-[#2D8CFF]">

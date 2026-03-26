@@ -64,9 +64,15 @@ function App() {
 
         <Routes>
 
+          {/* Verify Age - Entry point */}
+          <Route path="/" element={<ZoomVerify />} />
+
+          {/* Signup Route */}
+          <Route path="/signup" element={<SignupPage />} />
+
           {/* Login Route */}
           <Route
-            path="/"
+            path="/login"
             element={
               user
                 ? <Navigate to="/chat" replace />
@@ -80,21 +86,12 @@ function App() {
             element={
               user
                 ? <Chat user={user} setUser={setUser} />
-                : <Navigate to="/" replace />
+                : <Navigate to="/login" replace />
             }
           />
 
-          {/* Zoom Verify Route */}
-          <Route path="/zoom-verify" element={<ZoomVerify />} />
-
-          {/* Signup Route */}
-          <Route path="/signup" element={<SignupPage />} />
-
           {/* Default Route */}
-          <Route
-            path="*"
-            element={<Navigate to="/" replace />}
-          />
+          <Route path="*" element={<Navigate to="/" replace />} />
 
         </Routes>
 
