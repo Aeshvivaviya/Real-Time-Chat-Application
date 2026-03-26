@@ -37,7 +37,14 @@ export default function ZoomVerify() {
 
       {/* Header */}
       <header className="bg-white border-b border-gray-200 px-8 h-14 flex items-center justify-between">
-        <span className="text-2xl font-bold text-[#2D8CFF] tracking-tight">zoom</span>
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-[#2D8CFF] rounded-lg flex items-center justify-center">
+            <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M17 10.5V7a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h12a1 1 0 001-1v-3.5l4 4v-11l-4 4z"/>
+            </svg>
+          </div>
+          <span className="text-xl font-bold text-gray-900 tracking-tight">Meet<span className="text-[#2D8CFF]">Up</span></span>
+        </div>
         <nav className="flex items-center gap-6">
           <a href="#" className="text-sm text-gray-600 hover:text-[#2D8CFF] font-medium transition-colors">Sign In</a>
           <a href="#" className="text-sm text-gray-600 hover:text-[#2D8CFF] font-medium transition-colors">Support</a>
