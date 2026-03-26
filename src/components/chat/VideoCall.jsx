@@ -2,26 +2,23 @@ import { useEffect, useRef, useCallback, useState } from "react";
 
 const ICE_SERVERS = {
   iceServers: [
-    { urls: "stun:stun.relay.metered.ca:80" },
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+    { urls: "stun:stun2.l.google.com:19302" },
     {
-      urls: "turn:global.relay.metered.ca:80",
-      username: "75b79e13a28fadbf0a43f154",
-      credential: "nvNyuTCixkzyRvbO",
+      urls: "turn:openrelay.metered.ca:80",
+      username: "openrelayproject",
+      credential: "openrelayproject",
     },
     {
-      urls: "turn:global.relay.metered.ca:80?transport=tcp",
-      username: "75b79e13a28fadbf0a43f154",
-      credential: "nvNyuTCixkzyRvbO",
+      urls: "turn:openrelay.metered.ca:443",
+      username: "openrelayproject",
+      credential: "openrelayproject",
     },
     {
-      urls: "turn:global.relay.metered.ca:443",
-      username: "75b79e13a28fadbf0a43f154",
-      credential: "nvNyuTCixkzyRvbO",
-    },
-    {
-      urls: "turns:global.relay.metered.ca:443?transport=tcp",
-      username: "75b79e13a28fadbf0a43f154",
-      credential: "nvNyuTCixkzyRvbO",
+      urls: "turn:openrelay.metered.ca:443?transport=tcp",
+      username: "openrelayproject",
+      credential: "openrelayproject",
     },
   ],
   iceCandidatePoolSize: 10,
