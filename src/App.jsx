@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 
 import Login from './components/Login';
 import Chat from './components/chat/Chat';
-import ZoomVerify from './pages/ZoomVerify';
+import ZoomVerify from './components/chat/ZoomVerify';
 import SignupPage from './components/chat/SignupPage';
 import EmailVerify from './components/chat/EmailVerify';
 import { generateToken } from "./utils/getToken";
