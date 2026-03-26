@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 
 import Login from './components/Login';
 import Chat from './components/chat/Chat';
+import ZoomVerify from './pages/ZoomVerify';
 import { generateToken } from "./utils/getToken";
 
 function App() {
@@ -81,6 +82,9 @@ function App() {
                 : <Navigate to="/" replace />
             }
           />
+
+          {/* Zoom Verify Route */}
+          <Route path="/zoom-verify" element={<ZoomVerify />} />
 
           {/* Default Route */}
           <Route
