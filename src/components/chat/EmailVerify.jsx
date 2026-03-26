@@ -136,7 +136,7 @@ export default function EmailVerify() {
             {/* Verify button */}
             <button
               disabled={!isComplete}
-              onClick={() => navigate("/login")}
+              onClick={() => navigate("/create-account")}
               className="w-full py-3 rounded-lg text-sm font-semibold text-white bg-[#2D8CFF] mb-5 transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:enabled:bg-blue-600"
             >
               Verify
