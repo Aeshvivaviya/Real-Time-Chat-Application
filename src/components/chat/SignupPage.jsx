@@ -126,6 +126,7 @@ export default function SignupPage() {
               />
               <button
                 disabled={!isValid}
+                onClick={() => navigate("/verify-email", { state: { email } })}
                 className="w-full py-3 rounded-lg text-sm font-semibold text-white bg-[#2D8CFF] transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:enabled:bg-blue-600"
               >
                 Continue

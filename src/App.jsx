@@ -5,6 +5,7 @@ import Login from './components/Login';
 import Chat from './components/chat/Chat';
 import ZoomVerify from './pages/ZoomVerify';
 import SignupPage from './components/chat/SignupPage';
+import EmailVerify from './components/chat/EmailVerify';
 import { generateToken } from "./utils/getToken";
 
 function App() {
@@ -69,6 +70,9 @@ function App() {
 
           {/* Signup Route */}
           <Route path="/signup" element={<SignupPage />} />
+
+          {/* Email Verify Route */}
+          <Route path="/verify-email" element={<EmailVerify />} />
 
           {/* Login Route */}
           <Route
