@@ -73,9 +73,9 @@ export default function LinkAccount() {
 
           {/* Right form */}
           <div className="w-full md:w-96 bg-white rounded-2xl p-8 shadow-md border border-gray-100">
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Link To Your MeetUp Account</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Create Your MeetUp Password</h2>
             <p className="text-sm text-gray-500 mb-6 leading-relaxed">
-              We found an existing MeetUp account associated with your email. Would you like to link your Google account to MeetUp?
+              Set a password for your MeetUp account linked to your Google profile.
             </p>
 
             {/* User info card */}
@@ -91,11 +91,11 @@ export default function LinkAccount() {
 
             {/* Password field */}
             <div className="mb-1">
-              <label className="text-xs font-medium text-gray-600 mb-1 block">Password of existing MeetUp account</label>
+              <label className="text-xs font-medium text-gray-600 mb-1 block">Create a password for your MeetUp account</label>
               <div className="relative">
                 <input
                   type={showPass ? "text" : "password"}
-                  placeholder="Password"
+                  placeholder="Create Password"
                   value={password}
                   onChange={(e) => { setPassword(e.target.value); setError(""); }}
                   className={`w-full px-4 py-3 pr-10 border rounded-lg text-sm outline-none transition-all placeholder-gray-400 ${error ? "border-red-400" : "border-gray-300 focus:border-[#2D8CFF] focus:ring-2 focus:ring-blue-100"}`}
@@ -116,14 +116,14 @@ export default function LinkAccount() {
               {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
             </div>
 
-            <a href="#" className="text-xs text-[#2D8CFF] hover:underline block mb-5">Forgot password?</a>
+            <a href="#" className="text-xs text-[#2D8CFF] hover:underline block mb-5">Already have a password? Sign In</a>
 
             <button
               onClick={handleLink}
               disabled={loading}
               className="w-full py-3 rounded-lg text-sm font-semibold text-white bg-[#2D8CFF] hover:bg-blue-600 active:bg-blue-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed mb-4"
             >
-              {loading ? "Linking..." : "Link and Sign In"}
+              {loading ? "Saving..." : "Create and Sign In"}
             </button>
 
             <p className="text-xs text-gray-400 text-center leading-relaxed">
