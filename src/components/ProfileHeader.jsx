@@ -4,7 +4,7 @@ export default function ProfileHeader() {
   const firstLetter = name.charAt(0).toUpperCase();
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-between">
+    <div className="bg-white rounded-xl border border-gray-200 p-4 flex flex-wrap items-center justify-between gap-3">
       <div className="flex items-center gap-3">
         <div className="w-12 h-12 rounded-full bg-amber-700 flex items-center justify-center text-white font-bold text-xl shrink-0">
           {firstLetter}

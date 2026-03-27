@@ -2,8 +2,7 @@ import { useState } from "react";
 
 const navItems = ["Products", "Solutions", "Resources", "Plans & Pricing"];
 
-export default function Navbar() {
-  const [mobileOpen, setMobileOpen] = useState(false);
+export default function Navbar({ onMenuClick }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const user = JSON.parse(localStorage.getItem("chatUser") || "{}");
@@ -68,7 +67,7 @@ export default function Navbar() {
           </span>
 
           {/* Center nav — desktop */}
-          <div className="hidden md:flex items-center gap-7 flex-1 justify-center">
+          <div className="hidden lg:flex items-center gap-7 flex-1 justify-center">
             {navItems.map((item) => (
               <button key={item} className="text-sm font-medium text-gray-700 hover:text-[#2D8CFF] transition-colors whitespace-nowrap">
                 {item}
@@ -77,7 +76,7 @@ export default function Navbar() {
           </div>
 
           {/* Right actions — desktop */}
-          <div className="hidden md:flex items-center gap-1">
+          <div className="hidden lg:flex items-center gap-1">
             <button className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-[#2D8CFF] transition-colors">
               Schedule
             </button>
@@ -104,11 +103,9 @@ export default function Navbar() {
           </div>
 
           {/* Mobile hamburger */}
-          <button className="md:hidden text-gray-700" onClick={() => setMobileOpen(p => !p)}>
+          <button className="lg:hidden text-gray-700" onClick={onMenuClick}>
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-              {mobileOpen
-                ? <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                : <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />}
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
         </div>
