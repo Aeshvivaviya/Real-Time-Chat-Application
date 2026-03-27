@@ -162,12 +162,20 @@ const MeetingRoom = () => {
     init().catch(console.error);
 
     return () => {
-      socket.emit('user-left', meetingId);
       Object.values(peersRef.current).forEach(p => p.close());
       localStreamRef.current?.getTracks().forEach(t => t.stop());
-      socket.disconnect();
+      socketRef.current?.disconnect();
     };
   }, [meetingId, createPeer]);
+
+  const handleEndCall = () => {
+    // Emit BEFORE disconnecting so server receives it
+    socketRef.current?.emit('user-left', meetingId);
+    Object.values(peersRef.current).forEach(p => p.close());
+    localStreamRef.current?.getTracks().forEach(t => t.stop());
+    socketRef.current?.disconnect();
+    window.location.href = '/dashboard';
+  };
 
   const handleToggleVideo = (val) => {
     setVideoOn(val);
@@ -211,6 +219,7 @@ const MeetingRoom = () => {
         onToggleParticipants={() => setShowParticipants(p => !p)}
         onToggleVideo={handleToggleVideo}
         onToggleAudio={handleToggleAudio}
+        onEndCall={handleEndCall}
       />
       {showParticipants && <ParticipantsPanel onClose={() => setShowParticipants(false)} />}
     </div>

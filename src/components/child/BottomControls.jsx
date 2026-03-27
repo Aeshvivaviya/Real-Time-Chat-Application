@@ -5,7 +5,7 @@ import {
   ScreenShare, MoreHorizontal, PhoneOff
 } from 'lucide-react';
 
-const BottomControls = ({ onToggleParticipants, onToggleVideo, onToggleAudio }) => {
+const BottomControls = ({ onToggleParticipants, onToggleVideo, onToggleAudio, onEndCall }) => {
   const navigate = useNavigate();
   const [audio, setAudio] = useState(true);
   const [video, setVideo] = useState(true);
@@ -23,7 +23,11 @@ const BottomControls = ({ onToggleParticipants, onToggleVideo, onToggleAudio }) 
   };
 
   const handleEnd = () => {
-    navigate('/dashboard');
+    if (onEndCall) {
+      onEndCall();
+    } else {
+      navigate('/dashboard');
+    }
   };
 
   const ControlBtn = ({ icon, label, onClick, danger, active }) => (
