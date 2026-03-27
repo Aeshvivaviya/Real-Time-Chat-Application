@@ -1,7 +1,9 @@
 import { useState } from "react";
+import HostPopup from "./child/HostPopup";
 
 export default function RightPanel() {
   const [copied, setCopied] = useState(false);
+  const [showHostPopup, setShowHostPopup] = useState(false);
   const meetingId = "233 165 8987";
 
   const handleCopy = () => {
@@ -24,11 +26,11 @@ export default function RightPanel() {
             icon: <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
           },
           {
-            label: "Host", color: "bg-red-500",
+            label: "Host", color: "bg-red-500", isHost: true,
             icon: <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9A2.25 2.25 0 0013.5 5.25h-9A2.25 2.25 0 002.25 7.5v9A2.25 2.25 0 004.5 18.75z" /></svg>
           },
-        ].map(({ label, color, icon }) => (
-          <button key={label} className="flex flex-col items-center gap-1.5 group">
+        ].map(({ label, color, icon, isHost }) => (
+          <button key={label} onClick={isHost ? () => setShowHostPopup(true) : undefined} className="flex flex-col items-center gap-1.5 group">
             <div className={`w-11 h-11 rounded-xl ${color} flex items-center justify-center shadow-sm group-hover:opacity-90 transition-opacity`}>
               {icon}
             </div>
@@ -58,6 +60,8 @@ export default function RightPanel() {
           </button>
         </div>
       </div>
+
+      {showHostPopup && <HostPopup onClose={() => setShowHostPopup(false)} />}
     </div>
   );
 }
