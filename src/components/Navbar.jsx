@@ -1,12 +1,32 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 const navItems = ["Products", "Solutions", "Resources", "Plans & Pricing"];
 
 export default function Navbar({ onMenuClick }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [avatarOpen, setAvatarOpen] = useState(false);
+  const avatarRef = useRef(null);
+  const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("chatUser") || "{}");
   const firstLetter = user?.username?.charAt(0).toUpperCase() || "A";
+  const username = user?.username || "User";
+
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (avatarRef.current && !avatarRef.current.contains(e.target)) {
+        setAvatarOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  const handleSignOut = () => {
+    localStorage.removeItem("chatUser");
+    navigate("/login");
+  };
 
   return (
     <div className="sticky top-0 z-50">
@@ -96,9 +116,55 @@ export default function Navbar({ onMenuClick }) {
               </svg>
             </button>
 
-            {/* Avatar */}
-            <div className="w-9 h-9 rounded-full bg-amber-700 flex items-center justify-center text-white font-bold text-sm ml-2 cursor-pointer">
-              {firstLetter}
+            {/* Avatar with dropdown */}
+            <div className="relative ml-2" ref={avatarRef}>
+              <button
+                onClick={() => setAvatarOpen(p => !p)}
+                className="w-9 h-9 rounded-full bg-amber-700 flex items-center justify-center text-white font-bold text-sm cursor-pointer hover:opacity-90 transition-opacity"
+              >
+                {firstLetter}
+              </button>
+
+              {avatarOpen && (
+                <div className="absolute right-0 top-11 w-56 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden">
+                  {/* User info */}
+                  <div className="px-4 py-3 border-b border-gray-100">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-amber-700 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                        {firstLetter}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate">{username}</p>
+                        <p className="text-xs text-gray-500">Workplace Basic</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Menu items */}
+                  {[
+                    { label: "My Profile", icon: "👤" },
+                    { label: "Plans and Billing", icon: "💳" },
+                    { label: "Settings", icon: "⚙️" },
+                    { label: "Add Account", icon: "➕" },
+                  ].map(({ label, icon }) => (
+                    <button
+                      key={label}
+                      className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-colors"
+                    >
+                      <span>{icon}</span> {label}
+                    </button>
+                  ))}
+
+                  <div className="border-t border-gray-100">
+                    <button
+                      onClick={handleSignOut}
+                      className="w-full text-left px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 flex items-center gap-2 transition-colors"
+                    >
+                      <span>🚪</span> Sign Out
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
