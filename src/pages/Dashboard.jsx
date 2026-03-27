@@ -6,6 +6,7 @@ import Slider from "../components/Slider";
 import RecentActivity from "../components/RecentActivity";
 import RightPanel from "../components/RightPanel";
 import MeetingsCard from "../components/MeetingsCard";
+import Footer from "../components/Footer";
 
 export default function Dashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -46,6 +47,7 @@ export default function Dashboard() {
           </div>
         </main>
       </div>
+      <Footer />
     </div>
   );
 }
