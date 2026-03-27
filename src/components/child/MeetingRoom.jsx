@@ -151,6 +151,14 @@ const MeetingRoom = () => {
       setRemoteStreams(prev => prev.filter(s => s.id !== leftId));
     });
 
+    // 2-user call: other person ended → redirect everyone to dashboard
+    socket.on('call-ended', () => {
+      Object.values(peersRef.current).forEach(p => p.close());
+      localStreamRef.current?.getTracks().forEach(t => t.stop());
+      socket.disconnect();
+      window.location.href = '/dashboard';
+    });
+
     init().catch(console.error);
 
     return () => {
