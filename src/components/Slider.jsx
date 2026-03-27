@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 const slides = [
   {
@@ -12,7 +13,7 @@ const slides = [
     title: "Try MeetUp AI Companion — your intelligent meeting assistant, included free.",
     button: "Learn more",
     terms: false,
-    link: "https://ai.zoom.us/?from=web_portal",
+    link: "/ai-companion",
   },
 ];
 
@@ -34,6 +35,7 @@ function PersonIllustration() {
 
 export default function Slider() {
   const [current, setCurrent] = useState(0);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const timer = setInterval(() => setCurrent((p) => (p + 1) % slides.length), 4000);
@@ -53,7 +55,7 @@ export default function Slider() {
           <h2 className="text-lg sm:text-2xl font-bold text-gray-900 mb-1 sm:mb-2">{slide.tag}</h2>
           <p className="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4 leading-relaxed">{slide.title}</p>
           <button
-            onClick={() => slide.link && window.open(slide.link, '_blank')}
+            onClick={() => slide.link && navigate(slide.link)}
             className="px-4 sm:px-5 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold text-white bg-[#2D8CFF] rounded-lg hover:bg-blue-600 transition-colors"
           >
             {slide.button}

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const ExternalIcon = () => (
   <svg className="w-3 h-3 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
@@ -20,7 +21,7 @@ const sections = [
   {
     title: "My Products",
     items: [
-      { label: "AI Companion", badge: "New", external: true, link: "https://ai.zoom.us/?from=web_portal" },
+      { label: "AI Companion", badge: "New", external: true, link: "/ai-companion" },
       { label: "Meetings" },
       { label: "Recordings" },
       { label: "Summaries" },
@@ -68,6 +69,7 @@ const sections = [
 export default function Sidebar() {
   const [active, setActive] = useState("Meetings");
   const [collapsed, setCollapsed] = useState({ "My Account": true, Admin: true, Support: true });
+  const navigate = useNavigate();
 
   const toggleSection = (title) => {
     setCollapsed((p) => ({ ...p, [title]: !p[title] }));
@@ -108,7 +110,7 @@ export default function Sidebar() {
                 key={label}
                 onClick={() => {
                   setActive(label);
-                  if (link) window.open(link, '_blank');
+                  if (link) navigate(link);
                 }}
                 className={`w-full text-left text-sm px-3 py-1.5 rounded-lg flex items-center justify-between gap-1 transition-colors ${active === label ? "bg-blue-50 text-[#2D8CFF] font-medium" : "text-gray-600 hover:bg-gray-200"}`}
               >
