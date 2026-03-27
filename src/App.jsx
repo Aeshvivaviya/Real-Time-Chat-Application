@@ -24,21 +24,15 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const shouldRemember = localStorage.getItem("chatRememberMe") === "true";
     const savedUser = localStorage.getItem("chatUser");
-
-    if (shouldRemember && savedUser) {
+    if (savedUser) {
       try {
         const parsedUser = JSON.parse(savedUser);
         setUser(parsedUser);
       } catch (error) {
-        console.error("Error parsing saved user:", error);
         localStorage.removeItem("chatUser");
       }
-    } else {
-      setUser(null);
     }
-
     setLoading(false);
   }, []);
 
@@ -75,10 +69,10 @@ function App() {
         <Routes>
 
           {/* Verify Age - Entry point */}
-          <Route path="/" element={<ZoomVerify />} />
+          <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <ZoomVerify />} />
 
           {/* Signup Route */}
-          <Route path="/signup" element={<SignupPage />} />
+          <Route path="/signup" element={user ? <Navigate to="/dashboard" replace /> : <SignupPage />} />
 
           {/* Email Verify Route */}
           <Route path="/verify-email" element={<EmailVerify />} />
@@ -93,26 +87,18 @@ function App() {
           <Route path="/link-account" element={<LinkAccount />} />
 
           {/* Dashboard Route */}
-          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/dashboard" element={user ? <Dashboard /> : <Navigate to="/" replace />} />
 
           {/* Login Route */}
           <Route
             path="/login"
-            element={
-              user
-                ? <Navigate to="/chat" replace />
-                : <Login setUser={setUser} />
-            }
+            element={user ? <Navigate to="/dashboard" replace /> : <Login setUser={setUser} />}
           />
 
           {/* Chat Route */}
           <Route
             path="/chat"
-            element={
-              user
-                ? <Chat user={user} setUser={setUser} />
-                : <Navigate to="/login" replace />
-            }
+            element={user ? <Chat user={user} setUser={setUser} /> : <Navigate to="/login" replace />}
           />
 
           {/* Default Route */}
