@@ -8,6 +8,7 @@ import SignupPage from './components/chat/SignupPage';
 import EmailVerify from './components/chat/EmailVerify';
 import CreateAccount from './components/chat/CreateAccount';
 import OneMoreThing from './components/chat/OneMoreThing';
+import LinkAccount from './components/chat/LinkAccount';
 import { generateToken } from "./utils/getToken";
 
 function App() {
@@ -86,6 +87,9 @@ function App() {
 
           {/* One More Thing Route */}
           <Route path="/one-more-thing" element={<OneMoreThing />} />
+
+          {/* Link Account Route */}
+          <Route path="/link-account" element={<LinkAccount />} />
 
           {/* Login Route */}
           <Route

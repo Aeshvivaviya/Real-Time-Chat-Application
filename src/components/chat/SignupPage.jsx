@@ -67,8 +67,7 @@ export default function SignupPage() {
     try {
       const user = await signInWithGoogle();
       console.log("✅ Google sign in:", user.displayName, user.email);
-      // Navigate to chat after successful login
-      navigate("/");
+      navigate("/link-account", { state: { user: { displayName: user.displayName, email: user.email } } });
     } catch (err) {
       console.error("Google sign in error:", err);
       setGoogleError("Google sign in failed. Please try again.");
