@@ -77,7 +77,7 @@ export default function OneMoreThing() {
               As a school or other organization that provides educational services to children, you must provide additional information to continue using MeetUp services.
             </p>
             <button
-              onClick={() => navigate("/login")}
+              onClick={() => navigate("/dashboard")}
               className="w-full py-3 rounded-lg text-sm font-semibold text-white bg-[#2D8CFF] hover:bg-blue-600 active:bg-blue-700 transition-colors duration-200"
             >
               Continue

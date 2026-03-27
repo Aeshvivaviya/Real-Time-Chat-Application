@@ -15,10 +15,10 @@ export default function LinkAccount() {
     if (!password) { setError("Please enter your password."); return; }
     setLoading(true);
     setError("");
-    // Simulate linking — navigate to login on success
+    // Simulate linking — navigate to dashboard on success
     setTimeout(() => {
       setLoading(false);
-      navigate("/login");
+      navigate("/dashboard");
     }, 1000);
   };
 
