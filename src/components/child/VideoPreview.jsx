@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Mic, MicOff, Video, VideoOff, ChevronDown } from 'lucide-react';
 
@@ -7,8 +7,50 @@ const VideoPreview = () => {
   const navigate = useNavigate();
   const [audioOn, setAudioOn] = useState(true);
   const [videoOn, setVideoOn] = useState(true);
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+
+  useEffect(() => {
+    startCamera();
+    return () => stopCamera();
+  }, []);
+
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err) {
+      console.error('Camera access denied:', err);
+    }
+  };
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+    }
+  };
+
+  const toggleVideo = () => {
+    const next = !videoOn;
+    setVideoOn(next);
+    if (streamRef.current) {
+      streamRef.current.getVideoTracks().forEach(t => { t.enabled = next; });
+    }
+  };
+
+  const toggleAudio = () => {
+    const next = !audioOn;
+    setAudioOn(next);
+    if (streamRef.current) {
+      streamRef.current.getAudioTracks().forEach(t => { t.enabled = next; });
+    }
+  };
 
   const handleStart = () => {
+    stopCamera();
     navigate(`/meeting/${meetingId}/room`);
   };
 
@@ -20,11 +62,19 @@ const VideoPreview = () => {
         </h1>
 
         {/* Video Preview Box */}
-        <div className="relative bg-black rounded-2xl overflow-hidden aspect-video mb-6 flex items-center justify-center border border-white/10">
-          {videoOn ? (
-            <div className="text-gray-500 text-sm">Camera preview</div>
-          ) : (
-            <div className="flex flex-col items-center gap-2">
+        <div className="relative bg-black rounded-2xl overflow-hidden aspect-video mb-6 border border-white/10">
+          {/* Live camera */}
+          <video
+            ref={videoRef}
+            autoPlay
+            muted
+            playsInline
+            className={`w-full h-full object-cover ${videoOn ? 'block' : 'hidden'}`}
+          />
+
+          {/* Camera off state */}
+          {!videoOn && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
               <div className="w-16 h-16 rounded-full bg-gray-700 flex items-center justify-center">
                 <VideoOff size={28} className="text-gray-400" />
               </div>
@@ -35,13 +85,13 @@ const VideoPreview = () => {
           {/* Controls overlay */}
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3">
             <button
-              onClick={() => setAudioOn(!audioOn)}
+              onClick={toggleAudio}
               className={`p-3 rounded-full transition-all ${audioOn ? 'bg-white/20 hover:bg-white/30' : 'bg-red-600 hover:bg-red-700'}`}
             >
               {audioOn ? <Mic size={18} className="text-white" /> : <MicOff size={18} className="text-white" />}
             </button>
             <button
-              onClick={() => setVideoOn(!videoOn)}
+              onClick={toggleVideo}
               className={`p-3 rounded-full transition-all ${videoOn ? 'bg-white/20 hover:bg-white/30' : 'bg-red-600 hover:bg-red-700'}`}
             >
               {videoOn ? <Video size={18} className="text-white" /> : <VideoOff size={18} className="text-white" />}

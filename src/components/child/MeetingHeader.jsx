@@ -25,6 +25,7 @@ const MeetingHeader = () => {
         </h1>
         <div className="flex items-center gap-1 mt-0.5">
           <Shield size={12} className="text-green-400" />
+          
           <span className="text-gray-400 text-xs">ID: {meetingId}</span>
         </div>
       </div>
