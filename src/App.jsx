@@ -9,6 +9,7 @@ import EmailVerify from './components/chat/EmailVerify';
 import CreateAccount from './components/chat/CreateAccount';
 import OneMoreThing from './components/chat/OneMoreThing';
 import LinkAccount from './components/chat/LinkAccount';
+import Dashboard from './pages/Dashboard';
 import { generateToken } from "./utils/getToken";
 
 function App() {
@@ -90,6 +91,9 @@ function App() {
 
           {/* Link Account Route */}
           <Route path="/link-account" element={<LinkAccount />} />
+
+          {/* Dashboard Route */}
+          <Route path="/dashboard" element={<Dashboard />} />
 
           {/* Login Route */}
           <Route
