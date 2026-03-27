@@ -5,10 +5,22 @@ import {
   ScreenShare, MoreHorizontal, PhoneOff
 } from 'lucide-react';
 
-const BottomControls = ({ onToggleParticipants }) => {
+const BottomControls = ({ onToggleParticipants, onToggleVideo, onToggleAudio }) => {
   const navigate = useNavigate();
   const [audio, setAudio] = useState(true);
   const [video, setVideo] = useState(true);
+
+  const handleToggleAudio = () => {
+    const next = !audio;
+    setAudio(next);
+    onToggleAudio?.(next);
+  };
+
+  const handleToggleVideo = () => {
+    const next = !video;
+    setVideo(next);
+    onToggleVideo?.(next);
+  };
 
   const handleEnd = () => {
     navigate('/dashboard');
@@ -36,13 +48,13 @@ const BottomControls = ({ onToggleParticipants }) => {
         <ControlBtn
           icon={audio ? <Mic size={20} /> : <MicOff size={20} />}
           label={audio ? 'Mute' : 'Unmute'}
-          onClick={() => setAudio(!audio)}
+          onClick={handleToggleAudio}
           active={audio}
         />
         <ControlBtn
           icon={video ? <Video size={20} /> : <VideoOff size={20} />}
           label={video ? 'Stop Video' : 'Start Video'}
-          onClick={() => setVideo(!video)}
+          onClick={handleToggleVideo}
           active={video}
         />
         <ControlBtn
