@@ -110,22 +110,7 @@ export default function Navbar({ onMenuClick }) {
           </button>
         </div>
 
-        {/* Mobile menu */}
-        {mobileOpen && (
-          <div className="md:hidden bg-white border-t border-gray-100 px-6 py-4 flex flex-col gap-3">
-            {navItems.map((item) => (
-              <button key={item} className="text-sm font-medium text-gray-700 hover:text-[#2D8CFF] text-left transition-colors">
-                {item}
-              </button>
-            ))}
-            <hr className="border-gray-100" />
-            {["Schedule", "Join", "Host", "Web App"].map((item) => (
-              <button key={item} className="text-sm font-medium text-gray-700 hover:text-[#2D8CFF] text-left transition-colors">
-                {item}
-              </button>
-            ))}
-          </div>
-        )}
+        {/* Mobile menu - handled by Dashboard sidebar drawer */}
       </nav>
     </div>
   );
