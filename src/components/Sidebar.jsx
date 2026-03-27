@@ -20,7 +20,7 @@ const sections = [
   {
     title: "My Products",
     items: [
-      { label: "AI Companion", badge: "New", external: true },
+      { label: "AI Companion", badge: "New", external: true, link: "https://ai.zoom.us/?from=web_portal" },
       { label: "Meetings" },
       { label: "Recordings" },
       { label: "Summaries" },
@@ -103,10 +103,13 @@ export default function Sidebar() {
             )}
 
             {/* Items */}
-            {(!collapsible || !collapsed[title]) && items.map(({ label, badge, external }) => (
+            {(!collapsible || !collapsed[title]) && items.map(({ label, badge, external, link }) => (
               <button
                 key={label}
-                onClick={() => setActive(label)}
+                onClick={() => {
+                  setActive(label);
+                  if (link) window.open(link, '_blank');
+                }}
                 className={`w-full text-left text-sm px-3 py-1.5 rounded-lg flex items-center justify-between gap-1 transition-colors ${active === label ? "bg-blue-50 text-[#2D8CFF] font-medium" : "text-gray-600 hover:bg-gray-200"}`}
               >
                 <span className="truncate">{label}</span>
