@@ -11,7 +11,7 @@ const BottomControls = ({ onToggleParticipants }) => {
   const [video, setVideo] = useState(true);
 
   const handleEnd = () => {
-    navigate('/new-meeting');
+    navigate('/dashboard');
   };
 
   const ControlBtn = ({ icon, label, onClick, danger, active }) => (
