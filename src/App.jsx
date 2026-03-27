@@ -10,7 +10,6 @@ import CreateAccount from './components/chat/CreateAccount';
 import OneMoreThing from './components/chat/OneMoreThing';
 import LinkAccount from './components/chat/LinkAccount';
 import Dashboard from './pages/Dashboard';
-import NewMeetingPage from './pages/NewMeetingPage';
 import VideoPreview from './components/child/VideoPreview';
 import MeetingRoom from './components/child/MeetingRoom';
 import { generateToken } from "./utils/getToken";
@@ -103,9 +102,6 @@ function App() {
             path="/chat"
             element={user ? <Chat user={user} setUser={setUser} /> : <Navigate to="/login" replace />}
           />
-
-          {/* New Meeting Route */}
-          <Route path="/new-meeting" element={<NewMeetingPage />} />
 
           {/* Video Preview Route */}
           <Route path="/meeting/:meetingId" element={<VideoPreview />} />
