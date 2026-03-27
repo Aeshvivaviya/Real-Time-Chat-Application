@@ -50,12 +50,12 @@ export default function Slider() {
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden relative">
-      <div className="flex items-center justify-between px-8 py-6 relative min-h-[180px]">
+      <div className="flex items-center justify-between px-8 py-6 relative min-h-[200px]">
         {/* Purple circle bg */}
         <div className="absolute right-24 top-1/2 -translate-y-1/2 w-44 h-44 bg-purple-100 rounded-full opacity-60" />
 
         {/* Content */}
-        <div className="relative z-10 max-w-xs">
+        <div className="relative z-10 max-w-sm">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">{slide.tag}</h2>
           <p className="text-sm text-gray-600 mb-4 leading-relaxed">{slide.title}</p>
           <button className="px-5 py-2 text-sm font-semibold text-white bg-[#2D8CFF] rounded-lg hover:bg-blue-600 transition-colors">
