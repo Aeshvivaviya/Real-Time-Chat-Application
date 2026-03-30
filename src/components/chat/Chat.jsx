@@ -59,25 +59,28 @@ function Chat({ user }) {
     } catch { return ""; }
   }, []);
 
-  // Load saved data
+  // Load saved data + fetch all registered users
   useEffect(() => {
     if (user?.id && !initialLoadDone.current) {
       initialLoadDone.current = true;
       try {
         const savedMessages = localStorage.getItem(`chat_messages_${user.id}`);
         if (savedMessages) setPrivateMessages(JSON.parse(savedMessages));
-        const savedUsers = localStorage.getItem(`all_users_${user.id}`);
-        if (savedUsers) {
-          setUsers(JSON.parse(savedUsers).filter(u =>
-            u.username !== "System" && u.username !== "system" && u.id !== "system" && u.id !== user.id
-          ));
-        }
         const savedSelected = localStorage.getItem(`selected_user_${user.id}`);
         if (savedSelected) {
           const p = JSON.parse(savedSelected);
           if (p.username !== "System" && p.username !== "system" && p.id !== "system") setSelectedUser(p);
         }
       } catch (e) { console.error(e); }
+
+      // Fetch ALL registered users from backend
+      axios.get("/api/users").then(res => {
+        const all = (res.data?.users || res.data || []).filter(u =>
+          u.username !== "System" && u.username !== "system" &&
+          u.id !== "system" && u.id !== user.id
+        );
+        setUsers(all);
+      }).catch(console.error);
     }
   }, [user]);
 
@@ -188,7 +191,13 @@ function Chat({ user }) {
     });
     socket.on("users", (list) => {
       if (Array.isArray(list)) {
-        setUsers(list.filter(u => u?.username !== "System" && u?.username !== "system" && u?.id !== "system" && u?.id !== user.id));
+        const filtered = list.filter(u => u?.username !== "System" && u?.username !== "system" && u?.id !== "system" && u?.id !== user.id);
+        setUsers(prev => {
+          // Merge: keep existing + add new ones
+          const map = new Map(prev.map(u => [u.id, u]));
+          filtered.forEach(u => map.set(u.id, u));
+          return Array.from(map.values());
+        });
       }
     });
     socket.emit("getUsers");
