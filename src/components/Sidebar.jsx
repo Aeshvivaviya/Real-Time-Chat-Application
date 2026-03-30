@@ -22,6 +22,7 @@ const sections = [
     title: "My Products",
     items: [
       { label: "AI Companion", badge: "New", external: true, link: "/ai-companion" },
+      { label: "Chat", link: "/chat" },
       { label: "Meetings" },
       { label: "Recordings" },
       { label: "Summaries" },
@@ -66,7 +67,7 @@ const sections = [
   },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ onClose }) {
   const [active, setActive] = useState("Meetings");
   const [collapsed, setCollapsed] = useState({ "My Account": true, Admin: true, Support: true });
   const navigate = useNavigate();
@@ -111,6 +112,7 @@ export default function Sidebar() {
                 onClick={() => {
                   setActive(label);
                   if (link) navigate(link);
+                  if (onClose) onClose();
                 }}
                 className={`w-full text-left text-sm px-3 py-1.5 rounded-lg flex items-center justify-between gap-1 transition-colors ${active === label ? "bg-blue-50 text-[#2D8CFF] font-medium" : "text-gray-600 hover:bg-gray-200"}`}
               >

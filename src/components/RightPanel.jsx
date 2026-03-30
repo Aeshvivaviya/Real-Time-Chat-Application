@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import HostPopup from "./child/HostPopup";
 
 export default function RightPanel() {
   const [copied, setCopied] = useState(false);
   const [showHostPopup, setShowHostPopup] = useState(false);
+  const navigate = useNavigate();
   const meetingId = "233 165 8987";
 
   const handleCopy = () => {
@@ -18,8 +20,8 @@ export default function RightPanel() {
       <div className="flex justify-around mb-5">
         {[
           {
-            label: "Schedule", color: "bg-blue-500",
-            icon: <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5" /></svg>
+            label: "Chat", color: "bg-blue-500", isChat: true,
+            icon: <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" /></svg>
           },
           {
             label: "Join", color: "bg-blue-400",
@@ -29,8 +31,8 @@ export default function RightPanel() {
             label: "Host", color: "bg-red-500", isHost: true,
             icon: <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9A2.25 2.25 0 0013.5 5.25h-9A2.25 2.25 0 002.25 7.5v9A2.25 2.25 0 004.5 18.75z" /></svg>
           },
-        ].map(({ label, color, icon, isHost }) => (
-          <button key={label} onClick={isHost ? () => setShowHostPopup(true) : undefined} className="flex flex-col items-center gap-1.5 group">
+        ].map(({ label, color, icon, isHost, isChat }) => (
+          <button key={label} onClick={isHost ? () => setShowHostPopup(true) : isChat ? () => navigate("/chat") : undefined} className="flex flex-col items-center gap-1.5 group">
             <div className={`w-11 h-11 rounded-xl ${color} flex items-center justify-center shadow-sm group-hover:opacity-90 transition-opacity`}>
               {icon}
             </div>
