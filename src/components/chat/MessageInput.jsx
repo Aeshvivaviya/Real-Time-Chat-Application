@@ -1,77 +1,81 @@
-import React from "react";
+import React, { useState, useRef } from "react";
+import { Smile, Paperclip, Send } from "lucide-react";
 
-function MessageInput({ 
-  newMessage, 
-  
-  handleTyping, 
-  sendMessage, 
-  isConnected,
-  setShowEmojiPicker,
-  fileInputRef 
-}) {
+const QUICK_EMOJIS = ["😊","👍","❤️","😂","🔥","🎉","👏","😮"];
+
+export default function MessageInput({ newMessage, onTyping, onSend, isConnected, selectedUser }) {
+  const [showEmoji, setShowEmoji] = useState(false);
+  const inputRef = useRef(null);
+
+  const handleSend = () => {
+    if (!newMessage.trim() || !isConnected) return;
+    onSend(newMessage);
+    onTyping("");
+    setShowEmoji(false);
+    inputRef.current?.focus();
+  };
+
+  const handleKey = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  const addEmoji = (emoji) => {
+    onTyping(newMessage + emoji);
+    setShowEmoji(false);
+    inputRef.current?.focus();
+  };
+
   return (
-    <form
-      onSubmit={sendMessage}
-      className="bg-gray-800/50 backdrop-blur-xl p-4 border-t border-gray-700"
-    >
-      <div className="flex gap-3 items-center">
-        {/* Attachment button */}
+    <div className="px-4 sm:px-5 py-3.5 border-t border-gray-100 bg-white shrink-0 relative">
+      {showEmoji && (
+        <div className="absolute bottom-full left-4 mb-2 bg-white border border-gray-200 rounded-2xl shadow-xl px-4 py-3 flex gap-3 z-10">
+          {QUICK_EMOJIS.map(e => (
+            <button key={e} onClick={() => addEmoji(e)} className="text-xl hover:scale-125 transition-transform">{e}</button>
+          ))}
+        </div>
+      )}
+
+      <div className="flex items-center gap-2 bg-gray-50 rounded-2xl px-4 py-2.5 border border-gray-200 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
         <button
           type="button"
-          onClick={() => fileInputRef.current?.click()}
-          className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-xl transition-all duration-300"
+          onClick={() => setShowEmoji(p => !p)}
+          className="text-gray-400 hover:text-yellow-500 transition-colors shrink-0"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
-          </svg>
+          <Smile size={20} />
         </button>
-        
-        {/* Emoji button */}
-        <button
-          type="button"
-          onClick={() => setShowEmojiPicker(prev => !prev)}
-          className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-xl transition-all duration-300"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-          </svg>
+
+        <button type="button" className="text-gray-400 hover:text-blue-500 transition-colors shrink-0">
+          <Paperclip size={20} />
         </button>
-        
-        {/* Hidden file input */}
-        <input type="file" ref={fileInputRef} className="hidden" />
-        
-        {/* Message input */}
+
         <input
+          ref={inputRef}
           type="text"
           value={newMessage}
-          onChange={handleTyping}
-          placeholder={isConnected ? "Type a message..." : "Connecting..."}
-          className="flex-1 px-6 py-3 bg-gray-700/50 text-white border border-gray-600 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 placeholder-gray-400 transition-all duration-300"
-          disabled={!isConnected}
+          onChange={e => onTyping(e.target.value)}
+          onKeyDown={handleKey}
+          placeholder={
+            !isConnected ? "Connecting..." :
+            selectedUser ? `Message @${selectedUser.username}...` :
+            "Select a user to chat..."
+          }
+          disabled={!isConnected || !selectedUser}
+          className="flex-1 bg-transparent text-sm text-gray-800 outline-none placeholder-gray-400 disabled:cursor-not-allowed"
+          autoFocus
         />
-        
-        {/* Send button */}
+
         <button
-          type="submit"
+          type="button"
+          onClick={handleSend}
           disabled={!newMessage.trim() || !isConnected}
-          className="group relative px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 overflow-hidden"
+          className="w-8 h-8 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-200 disabled:cursor-not-allowed rounded-xl flex items-center justify-center transition-colors shrink-0"
         >
-          <span className="relative z-10 flex items-center gap-2">
-            Send
-            <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
-            </svg>
-          </span>
+          <Send size={14} className={newMessage.trim() && isConnected ? "text-white" : "text-gray-400"} />
         </button>
       </div>
-      
-      {!isConnected && (
-        <p className="text-yellow-500 text-sm mt-3 text-center">
-          ⚠ Waiting for server connection...
-        </p>
-      )}
-    </form>
+    </div>
   );
 }
-
-export default MessageInput;
