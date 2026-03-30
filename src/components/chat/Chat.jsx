@@ -73,14 +73,26 @@ function Chat({ user }) {
         }
       } catch (e) { console.error(e); }
 
-      // Fetch ALL registered users from backend
-      axios.get("/api/users").then(res => {
-        const all = (res.data?.users || res.data || []).filter(u =>
-          u.username !== "System" && u.username !== "system" &&
-          u.id !== "system" && u.id !== user.id
-        );
-        setUsers(all);
-      }).catch(console.error);
+      // Fetch ALL registered users from backend — with retry for Render cold start
+      const fetchUsers = async (retries = 3) => {
+        for (let i = 0; i < retries; i++) {
+          try {
+            const res = await axios.get("/api/users", { timeout: 15000 });
+            const all = (res.data?.users || res.data || []).filter(u =>
+              u.username !== "System" && u.username !== "system" &&
+              u.id !== "system" && u.id !== user.id
+            );
+            if (all.length > 0 || i === retries - 1) {
+              setUsers(all);
+              return;
+            }
+          } catch (e) {
+            console.error(`Users fetch attempt ${i + 1} failed:`, e.message);
+          }
+          await new Promise(r => setTimeout(r, 3000));
+        }
+      };
+      fetchUsers();
     }
   }, [user]);
 
@@ -151,10 +163,10 @@ function Chat({ user }) {
     if (socketRef.current) { socketRef.current.disconnect(); socketRef.current = null; }
 
     socketRef.current = io(SOCKET_URL, {
-      transports: ["websocket"],
+      transports: ["websocket", "polling"],
       reconnection: true,
       reconnectionAttempts: 10,
-      reconnectionDelay: 1000,
+      reconnectionDelay: 2000,
       timeout: 30000,
       query: { userId: user.id, username: user.username },
     });
@@ -164,6 +176,18 @@ function Chat({ user }) {
     socket.on("connect", () => {
       setIsConnected(true); setError(""); reconnectAttempts.current = 0;
       socket.emit("register", user.id, user.username);
+      // Refresh users list on connect
+      axios.get("/api/users", { timeout: 10000 }).then(res => {
+        const all = (res.data?.users || res.data || []).filter(u =>
+          u.username !== "System" && u.username !== "system" &&
+          u.id !== "system" && u.id !== user.id
+        );
+        setUsers(prev => {
+          const map = new Map(prev.map(u => [u.id, u]));
+          all.forEach(u => map.set(u.id, u));
+          return Array.from(map.values());
+        });
+      }).catch(() => {});
     });
     socket.on("connect_error", () => {
       reconnectAttempts.current += 1;
