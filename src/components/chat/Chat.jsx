@@ -289,9 +289,8 @@ function Chat({ user }) {
 
   return (
     <>
-      {/* Full screen blue gradient background */}
-      <div className="h-screen w-screen bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-700 flex items-center justify-center p-2 sm:p-4 overflow-hidden">
-        <div className="w-full h-full max-w-[1400px] max-h-[900px] bg-white rounded-2xl shadow-2xl flex overflow-hidden relative">
+      <div className="h-screen w-screen bg-gray-100 flex overflow-hidden">
+        <div className="w-full h-full flex overflow-hidden relative">
 
           {/* Mobile sidebar overlay */}
           {sidebarOpen && (
