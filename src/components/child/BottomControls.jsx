@@ -5,7 +5,7 @@ import {
   ScreenShare, MoreHorizontal, PhoneOff
 } from 'lucide-react';
 
-const BottomControls = ({ onToggleParticipants, onToggleVideo, onToggleAudio, onEndCall }) => {
+const BottomControls = ({ onToggleParticipants, onToggleChat, onToggleVideo, onToggleAudio, onEndCall }) => {
   const navigate = useNavigate();
   const [audio, setAudio] = useState(true);
   const [video, setVideo] = useState(true);
@@ -69,7 +69,7 @@ const BottomControls = ({ onToggleParticipants, onToggleVideo, onToggleAudio, on
         <ControlBtn
           icon={<MessageSquare size={20} />}
           label="Chat"
-          onClick={() => {}}
+          onClick={onToggleChat}
         />
         <ControlBtn
           icon={<ScreenShare size={20} />}

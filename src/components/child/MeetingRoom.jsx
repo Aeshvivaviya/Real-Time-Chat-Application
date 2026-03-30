@@ -4,6 +4,7 @@ import { io } from 'socket.io-client';
 import MeetingHeader from './MeetingHeader';
 import BottomControls from './BottomControls';
 import ParticipantsPanel from './ParticipantsPanel';
+import MeetingChat from './MeetingChat';
 
 const ICE_SERVERS = {
   iceServers: [
@@ -16,6 +17,7 @@ const ICE_SERVERS = {
 const MeetingRoom = () => {
   const { meetingId } = useParams();
   const [showParticipants, setShowParticipants] = useState(false);
+  const [showChat, setShowChat] = useState(false);
   const [remoteStreams, setRemoteStreams] = useState([]); // [{ id, stream, name }]
   const [videoOn, setVideoOn] = useState(true);
 
@@ -197,11 +199,20 @@ const MeetingRoom = () => {
       <MeetingHeader />
       <BottomControls
         onToggleParticipants={() => setShowParticipants(p => !p)}
+        onToggleChat={() => setShowChat(p => !p)}
         onToggleVideo={handleToggleVideo}
         onToggleAudio={handleToggleAudio}
         onEndCall={handleEndCall}
       />
       {showParticipants && <ParticipantsPanel onClose={() => setShowParticipants(false)} />}
+      {showChat && (
+        <MeetingChat
+          socket={socketRef.current}
+          meetingId={meetingId}
+          myName={myName}
+          onClose={() => setShowChat(false)}
+        />
+      )}
     </div>
   );
 };
